@@ -83,6 +83,9 @@ std::optional<Order> OrderBook::cancel_order(int order_id)
             });
 
         if (order_it == orders.end())
+        {
+            throw std::logic_error("order not found");
+        }
         assert(order_it != orders.end());
 
         Order removed = *order_it;

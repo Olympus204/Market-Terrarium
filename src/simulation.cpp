@@ -257,7 +257,7 @@ bool Simulation::liquidate_trader(int trader_id)
         bool charged = charge_trader(trader_id, total_cash);
         if (!charged)
         {
-            throw std::logic_error("Trader failed to pay fines, call the cops");
+            throw std::logic_error("Trader failed to pay fines");
         }
     }
     else if (total_cash < 0)
@@ -343,11 +343,11 @@ void Simulation::tick()
         }
     }
     auto bank_balance = traders.at(0).get_available_cash();
-    if (bank_balance > reserve_target)
+    if (bank_balance > reserve_target && current_tick % recycle_frequency == 0)
     {
         int excess = bank_balance - reserve_target;
         int trader_count = static_cast<int>(active_traders.size());
-        if (trader_count >= 0)
+        if (trader_count > 0)
         {
             int distribution = excess * recycle_fraction;
             int distribution_per_trader = distribution / trader_count;

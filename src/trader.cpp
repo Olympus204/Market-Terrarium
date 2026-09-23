@@ -494,7 +494,6 @@ TraderDecision SimpleTrader::bankruptcy_check()
             return TraderDecision{ActionType::sell, 0, best_fallback_id, fallback_quantity, fallback_liquidation};
         }
     }
-    // you are fucked
     return TraderDecision{ActionType::none,0,0,0,0};
 }
 
