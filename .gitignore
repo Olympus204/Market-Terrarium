@@ -1,8 +1,7 @@
 build/
-cmake-build-*/
-.cache/
-
+imgui.ini
 *.o
+*.a
+*.so
 *.out
-
 .vscode/
