@@ -81,11 +81,11 @@ cmake --build build
 ./build/tests
 ```
 
-## Configuring and experiment
+## Configuring an experiment
 
 Experiments are currently configured in ``` src/main.cpp ```
 for example
-``` bash
+``` cpp
 Simulation sim{1001, 150000};
 
 sim.add_instrument(1, "ALPHA", 100);
@@ -119,7 +119,7 @@ tests/       Order book, market, trader and simulation tests
 external/    Vendored Dear ImGui and ImPlot sources
 ```
 
-the core simulation is built as the ```bash market_core``` library. The GUI is kept in a separate ```bash gui_support``` target, while the tests link only against the core simulation.
+The core simulation is built as the ```bash market_core``` library. The GUI is kept in a separate ```bash gui_support``` target, while the tests link only against the core simulation.
 
 ## Current limitations
 Market Terrarium is intentionally simplified. In the current version:
