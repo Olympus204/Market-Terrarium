@@ -6,6 +6,10 @@ The project models a closed market with finite cash and shares, then lets autono
 
 The simulation includes a live Dear ImGui / ImPlot dashboard for inspecting the market while it runs.
 
+![Market Terrarium example run](docs/market-terrarium-example.png)
+
+*Example run from symmetric initial conditions, showing emergent price divergence and ownership differences across trader strategies.*
+
 ## Current features
 
 - Limit order books with price-time priority
