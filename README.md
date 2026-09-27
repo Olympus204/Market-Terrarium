@@ -1,5 +1,7 @@
 # Market Terrarium
 
+[![CI](https://github.com/Olympus204/Market-Terrarium/actions/workflows/ci.yml/badge.svg)](https://github.com/Olympus204/Market-Terrarium/actions/workflows/ci.yml)
+
 Market Terrarium is a C++20 agent-based market simulator built around limit order books.
 
 The project models a closed market with finite cash and shares, then lets autonomous trader populations interact through buy, sell, cancel and wait decisions. The aim is not to reproduce a specific real market, but to create a small experimental environment where different trading behaviours can produce emergent price, ownership, wealth and survival dynamics.
