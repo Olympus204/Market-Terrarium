@@ -166,40 +166,60 @@ Keeping simulation and analysis separate allows the C++ executable to concentrat
 
 *Persistence rate across random-trader populations for markets containing 45, 90, 135 and 180 total traders.*
 
-### Reproducing the analysis
+### Reproducing the persistence graph
 
-The figures in this section are generated from repeated batch simulations using the Python scripts in `analysis/`.
+The current experiment and analysis configuration is hardcoded while the experimental workflow is still being developed.
 
-Create a Python virtual environment and install the analysis dependencies:
+To reproduce the persistence analysis:
+
+1. Configure the desired population size, seed range and experiment parameters in `src/batch.cpp`.
+
+2. Build and run the headless experiment runner:
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target market_batch
+./build/market_batch
+```
+
+Batch results are written as timestamped CSV files in `results/`.
+
+3. Create a Python environment and install the analysis dependencies:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-
 pip install -r requirements.txt
 ```
 
-Run the analysis script from the repository root:
+4. In `analysis/analysis.py`, update the `files` dictionary to point to the CSV files produced by the experiments and specify the corresponding total trader populations.
+
+For example:
+
+```python
+files = {
+    "90 traders": {
+        "path": ROOT / "results" / "your_90_trader_results.csv",
+        "total_traders": 90,
+    },
+
+    "180 traders": {
+        "path": ROOT / "results" / "your_180_trader_results.csv",
+        "total_traders": 180,
+        "experiment_type": "random_rebalancer",
+    },
+}
+```
+
+5. Generate the graph:
 
 ```bash
 python analysis/analysis.py
 ```
 
-The script reads the relevant experiment CSV files from `results/`, groups repeated simulations by trader population, calculates the proportion of runs with trading activity during the final 1,000 ticks, and plots the resulting persistence curves.
+The analysis classifies a run as persistent when trading occurs during the final 1,000 simulation ticks, then calculates the persistence rate for each random-trader population.
 
-Generated figures are written to:
-
-```text
-figures/
-```
-
-The persistence graph can therefore be reproduced with:
-
-```bash
-python analysis/analysis.py
-```
-
-provided the corresponding experiment CSV files are present in `results/`.
+Experiment configuration and analysis inputs are currently hardcoded deliberately while the experiment format is evolving. Moving these settings to command-line arguments or configuration files is planned for a later version.
 
 ## Project structure
 
