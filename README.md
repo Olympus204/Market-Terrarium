@@ -166,6 +166,41 @@ Keeping simulation and analysis separate allows the C++ executable to concentrat
 
 *Persistence rate across random-trader populations for markets containing 45, 90, 135 and 180 total traders.*
 
+### Reproducing the analysis
+
+The figures in this section are generated from repeated batch simulations using the Python scripts in `analysis/`.
+
+Create a Python virtual environment and install the analysis dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+Run the analysis script from the repository root:
+
+```bash
+python analysis/analysis.py
+```
+
+The script reads the relevant experiment CSV files from `results/`, groups repeated simulations by trader population, calculates the proportion of runs with trading activity during the final 1,000 ticks, and plots the resulting persistence curves.
+
+Generated figures are written to:
+
+```text
+figures/
+```
+
+The persistence graph can therefore be reproduced with:
+
+```bash
+python analysis/analysis.py
+```
+
+provided the corresponding experiment CSV files are present in `results/`.
+
 ## Project structure
 
 ```text
