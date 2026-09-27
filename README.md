@@ -162,7 +162,7 @@ The current analysis workflow uses Python with pandas, Matplotlib and Seaborn to
 
 Keeping simulation and analysis separate allows the C++ executable to concentrate on running experiments quickly while Python handles exploratory statistics and visualisation.
 
-![Transition to persistent trading](docs/persistent_trader_transition.png)
+![Transition to persistent trading](docs/persistent_trading_transition.png)
 
 *Persistence rate across random-trader populations for markets containing 45, 90, 135 and 180 total traders.*
 
