@@ -139,4 +139,14 @@ ax.axhline(
 )
 
 plt.tight_layout()
+
+figure_directory = ROOT / "figures"
+figure_directory.mkdir(exist_ok=True)
+
+fig.savefig(
+    figure_directory / "random_trader_persistence.png",
+    dpi=300,
+    bbox_inches="tight"
+)
+
 plt.show()
