@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(Threads REQUIRED)
 
 add_library(market_core
     src/order_book.cpp
@@ -58,6 +59,25 @@ add_executable(market_terrarium
 target_link_libraries(market_terrarium PRIVATE
     market_core
     gui_support
+)
+
+add_executable(market_batch
+    src/batch.cpp
+)
+
+target_link_libraries(market_batch PRIVATE
+    market_core
+    Threads::Threads
+)
+
+target_compile_options(market_batch PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+)
+
+target_compile_definitions(market_batch PRIVATE
+    MARKET_TERRARIUM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
 add_executable(tests

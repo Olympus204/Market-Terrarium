@@ -81,6 +81,7 @@ public:
     void set_starting_amount(std::int64_t cash);
     SimulationSnapshot get_snapshot();
     void set_bank_recycling(std::int64_t target, int frequency, double fraction);
+    int get_total_trades() const;
 private:
     std::mt19937_64 rng;
     Market market;
@@ -99,7 +100,7 @@ private:
     std::size_t next_unsettled_trade = 0;
     std::unordered_map<int, double> visible_prices;
     std::unordered_map<TraderType, int> type_count;
-    std::int64_t reserve_target = 10000;
+    std::int64_t reserve_target = 20000;
     int recycle_frequency = 1;
     double recycle_fraction = 0.1;
 };

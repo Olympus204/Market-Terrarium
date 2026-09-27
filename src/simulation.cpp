@@ -785,3 +785,8 @@ void Simulation::set_bank_recycling(std::int64_t target, int frequency, double f
     recycle_frequency = frequency;
     recycle_fraction = fraction;
 }
+
+int Simulation::get_total_trades() const
+{
+    return static_cast<int>(next_unsettled_trade);
+}

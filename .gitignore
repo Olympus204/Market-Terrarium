@@ -5,3 +5,5 @@ imgui.ini
 *.so
 *.out
 .vscode/
+.venv/
+results/
