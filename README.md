@@ -1,6 +1,6 @@
 # Market Terrarium
 
-[![CI](https://github.com/Olympus204/Market-Terrarium/actions/workflows/ci.yml/badge.svg)](https://github.com/Olympus204/Market-Terrarium/actions/workflows/ci.yml)
+[![CI](https://github.com/Olympus204/Market-Terrarium/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Olympus204/Market-Terrarium/actions/workflows/ci.yml)
 
 Market Terrarium is a C++20 agent-based market simulator built around limit order books.
 
