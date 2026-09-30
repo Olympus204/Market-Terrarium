@@ -547,52 +547,54 @@ void Simulation::tick()
             }
         }
 
-            continue;
-        }
-        auto choice = it->second.bankruptcy_check();
-        if (choice.type == ActionType::cancel)
-        {
-            bool cancel = cancel_order(choice.order_id,id);
-            if (!cancel)
-            {
-                throw std::logic_error("failed to cancel order");
-            }
-        }
-        else if (choice.type == ActionType::sell)
-        {
-            bool reserve = reserve_order(id,choice.instrument_id,Side::sell,choice.quantity,choice.price);
-            if (!reserve)
-            {
-                throw std::logic_error("failed to reserve order");
-            }
-            bool submit = submit_order(id,choice.instrument_id,Side::sell,choice.quantity,choice.price);
-            if (!submit)
-            {
-                throw std::logic_error("failed to submit order");
-            }
         }
         else
         {
-            //you poor bastard
-        }
-        available_cash = it->second.get_available_cash();
-        if (available_cash >= 0)
-        {
-            it->second.reset_health();
-        }
-        else
-        {
-            bool alive = it->second.increment_health();
-            if (!alive)
+            auto choice = it->second.bankruptcy_check();
+            if (choice.type == ActionType::cancel)
             {
-                //kill trader
-                failed_traders.push_back(id);
+                bool cancel = cancel_order(choice.order_id,id);
+                if (!cancel)
+                {
+                    throw std::logic_error("failed to cancel order");
+                }
             }
-        }
-        if (current_tick % epoch_size == 0)
-        {
-            total_worths.push_back(it->second.get_total_worth());
-            it->second.record_total_worth(total_worths.back());
+            else if (choice.type == ActionType::sell)
+            {
+                bool reserve = reserve_order(id,choice.instrument_id,Side::sell,choice.quantity,choice.price);
+                if (!reserve)
+                {
+                    throw std::logic_error("failed to reserve order");
+                }
+                bool submit = submit_order(id,choice.instrument_id,Side::sell,choice.quantity,choice.price);
+                if (!submit)
+                {
+                    throw std::logic_error("failed to submit order");
+                }
+            }
+            else
+            {
+                //you poor bastard
+            }
+            available_cash = it->second.get_available_cash();
+            if (available_cash >= 0)
+            {
+                it->second.reset_health();
+            }
+            else
+            {
+                bool alive = it->second.increment_health();
+                if (!alive)
+                {
+                    //kill trader
+                    failed_traders.push_back(id);
+                }
+            }
+            if (current_tick % epoch_size == 0)
+            {
+                total_worths.push_back(it->second.get_total_worth());
+                it->second.record_total_worth(total_worths.back());
+            }
         }
     }
     for (int trader : failed_traders)
