@@ -62,7 +62,7 @@ void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_t
 {
 
     std::int64_t worth_change = trader_worth_change;
-    std::int64_t median_change = median_last_epoch - median_this_epoch;
+    std::int64_t median_change = median_this_epoch - median_last_epoch;
     if (change_no == 0)
     {
         if (layer_no == 0)
