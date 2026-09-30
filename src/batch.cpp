@@ -145,7 +145,7 @@ void sample_prices(
     for (int id : snapshot.instrument_ids)
     {
         double price =
-            snapshot.instrument_reference_price.at(id);
+            snapshot.instrument_reference_price.at(id).current_price;
 
         stats[id].add(price);
 
@@ -474,7 +474,7 @@ void write_result(
         }
 
         csv
-            << snapshot.instrument_reference_price.at(id)
+            << snapshot.instrument_reference_price.at(id).current_price
             << ','
             << stats.mean() << ','
             << stats.minimum << ','
