@@ -113,6 +113,7 @@ bool SimpleTrader::record_total_worth(std::int64_t new_total_worth)
     if (is_worth_current_epoch)
     {
         total_worth_last_epoch = total_worth;
+        total_worth = new_total_worth;
         is_worth_last_epoch = true;
         return true;
     }
@@ -130,7 +131,7 @@ std::optional<std::int64_t> SimpleTrader::get_worth_change()
     std::int64_t change = 0;
     if (is_worth_last_epoch && is_worth_current_epoch)
     {
-        change = total_worth_last_epoch - total_worth;
+        change = total_worth - total_worth_last_epoch;
         return change;
     }
     return std::nullopt;

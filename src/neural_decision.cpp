@@ -258,6 +258,8 @@ MemoryDecision neural_decide(const SimpleTrader& trader)
         EvolutionOutputs output = forward_pass(genome, inputs, memory_1.at(id), memory_2.at(id),memory_3.at(id),memory_4.at(id));
         memory_1.at(id) = output.memory_1;
         memory_2.at(id) = output.memory_2;
+        memory_3.at(id) = output.memory_3;
+        memory_4.at(id) = output.memory_4;
         outputs.emplace(id,output);
     }
     return MemoryDecision{evaluate(outputs,trader),memory_1,memory_2,memory_3,memory_4};

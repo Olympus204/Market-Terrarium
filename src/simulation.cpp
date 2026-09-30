@@ -74,7 +74,7 @@ std::vector<NeuralParentCandidate> Simulation::get_neural_parent_candidates(int 
                 continue;
             }
 
-            int age = current_tick - trader->second.get_age(current_tick);
+            int age = trader->second.get_age(current_tick);
 
             candidates.push_back(
                 NeuralParentCandidate{
@@ -1012,7 +1012,13 @@ SimulationSnapshot Simulation::get_snapshot()
             snapshot.neural_evolution_deaths += number;
         }
     }
-    snapshot.longest_neural_lifespan = cemetery.begin()->first;
+    snapshot.longest_neural_lifespan = 0;
+
+    if (!cemetery.empty())
+    {
+        snapshot.longest_neural_lifespan =
+            cemetery.begin()->first;
+    }
     snapshot.replacements = replacements;
     const auto& active_orders = market.get_active_orders();
     snapshot.active_orders = static_cast<int>(active_orders.size());
