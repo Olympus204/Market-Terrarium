@@ -18,6 +18,8 @@ add_library(market_core
     src/trader.cpp
     src/simulation.cpp
     src/decisions.cpp
+    src/neural_genome.cpp
+    src/neural_decision.cpp
 )
 
 target_include_directories(market_core PUBLIC
