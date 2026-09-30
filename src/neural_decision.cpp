@@ -58,9 +58,9 @@ EvolutionOutputs forward_pass(const NeuralGenome& genome, const EvolutionInputs&
     input_array[6] = inputs.fraction_of_wealth_in_instruments;
     input_array[7] = inputs.fraction_of_wealth_in_cash;
     input_array[8] = memory_1;
-    input_array[8] = memory_2;
-    input_array[8] = memory_3;
-    input_array[8] = memory_4;
+    input_array[9] = memory_2;
+    input_array[10] = memory_3;
+    input_array[11] = memory_4;
 
     EvolutionOutputs outputs;
     std::array<double,NeuralGenome::HIDDEN_SIZE> hidden_nodes;
