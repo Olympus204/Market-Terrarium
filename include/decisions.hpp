@@ -1,6 +1,7 @@
 #pragma once
 
 #include "trader.hpp"
+#include "neural_decision.hpp"
 
 #include <random>
 #include <map>
@@ -16,4 +17,4 @@ struct ActionWeights
 
 std::optional<int> chooser(const std::map<int, int>& weights, std::mt19937_64& rng);
 std::map<int, int> random_instrument_choice(std::unordered_map<int, std::deque<int>>& observed_prices);
-TraderDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng);
+MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng);

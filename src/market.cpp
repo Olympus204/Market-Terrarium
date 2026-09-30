@@ -108,12 +108,16 @@ const std::unordered_map<int, ActiveOrder>& Market::get_active_orders() const
     return active_orders;
 }
 
-std::unordered_map<int,double> Market::get_last_prices()
+std::unordered_map<int,Observation> Market::get_last_prices()
 {
-    std::unordered_map<int,double> estimated_prices;
+    std::unordered_map<int,Observation> estimated_prices;
     for (auto [id, instrument] : instruments)
     {
-        estimated_prices[id] = instrument.last_price;
+        Observation obs;
+        obs.current_price = instrument.last_price;
+        obs.best_buy = instruments.at(id).book.best_buy();
+        obs.best_sell = instruments.at(id).book.best_sell();
+        estimated_prices[id] = obs;
     }
     return estimated_prices;
 }

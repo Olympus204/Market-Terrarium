@@ -2,7 +2,6 @@
 
 #include "order_book.hpp"
 #include "trades.hpp"
-#include "trader.hpp"
 
 #include <vector>
 #include <map>
@@ -25,6 +24,13 @@ struct ActiveOrder
     int remaining_quantity;
 };
 
+struct Observation
+{
+    double current_price;
+    std::optional<int> best_buy;
+    std::optional<int> best_sell;
+};
+
 struct Market
 {
 public:
@@ -33,13 +39,12 @@ public:
     const std::vector<Trade>& get_history() const;
     const std::unordered_map<int, ActiveOrder>& get_active_orders() const;
     std::optional<ActiveOrder> cancel_order(int order_id, int trader_id);
-    std::unordered_map<int,double> get_last_prices();
+    std::unordered_map<int,Observation> get_last_prices();
     std::map<int, std::string> get_instrument_names();
     std::map<int,int> get_total_trades();
 
 private:
     std::map<int, Instrument> instruments;
-    std::vector<SimpleTrader> traders;
     std::vector<Trade> history;
     int next_trade_id{0};
     int next_order_id{0};

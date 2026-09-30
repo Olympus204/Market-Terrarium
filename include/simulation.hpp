@@ -10,13 +10,25 @@
 #include <unordered_map>
 #include <deque>
 
+struct OldTraderSnapshot
+{
+    int trader_id = 0;
+    int age = 0;
+
+    std::int64_t cash = 0;
+    std::int64_t wealth = 0;
+
+    std::map<int, int> holdings;
+};
+
 struct SimulationSnapshot
 {
+    int seed;
     int tick;
     //instruments
     std::vector<int> instrument_ids;
     std::map<int,std::string> instrument_names;
-    std::unordered_map<int,double> instrument_reference_price;
+    std::unordered_map<int,Observation> instrument_reference_price;
     std::unordered_map<int,int> last_execution_price;
     std::map<int,int> total_trades_per_instrument;
     //population
@@ -39,6 +51,13 @@ struct SimulationSnapshot
     double portfolio_rebalancer_cash_fraction;
     std::map<int,int> portfolio_rebalancer_percentage_of_each_instrument;
 
+    int neural_evolution;
+    std::int64_t neural_evolution_cash;
+    std::int64_t neural_evolution_portfolio_value;
+    double neural_evolution_cash_fraction;
+    std::map<int,int> neural_evolution_percentage_of_each_instrument;
+    std::vector<OldTraderSnapshot> oldest_neural_traders;
+
     //bank
     std::int64_t bank_cash;
     std::int64_t bank_redistributed_this_tick;
@@ -51,6 +70,8 @@ struct SimulationSnapshot
     int random_deaths = 0;
     int mean_reversion_deaths = 0;
     int portfolio_rebalancer_deaths = 0;
+    int neural_evolution_deaths = 0;
+    int longest_neural_lifespan = 0;
     int replacements;
     int active_orders;
 };
@@ -60,6 +81,8 @@ struct Simulation
 public:
     Simulation(std::uint64_t seed, int total_cash);
     void snapshot_prices();
+    void set_living_parent_selection(bool enabled);
+    std::vector<NeuralParentCandidate> get_neural_parent_candidates(int child_id) const;
     bool add_trader(int64_t starting_money, TraderType type);
     bool queue_trader(TraderType type);
     bool add_instrument(int id, std::string name, int starting_price);
@@ -84,21 +107,32 @@ public:
     int get_total_trades() const;
 private:
     std::mt19937_64 rng;
+    int seed;
     Market market;
     std::map<int,SimpleTrader> traders;
     std::vector<int> active_traders;
     std::unordered_map<int, size_t> active_trader_index;
-    std::vector<TraderType> traders_to_add;
+    std::deque<TraderType> traders_to_add;
+    int epoch_size = 50;
+    std::int64_t median_worth = 0;
+    std::int64_t median_worth_last_epoch = 0;
+    bool is_median_worth = false;
+    bool is_median_worth_last_epoch = false;
+    
+    bool can_learn = true;
+
+    bool allow_living_parents = false;
     int last_used_id = 0;
     int current_tick = 1;
     std::map<TraderType,int> deaths;
+    std::multimap<int, NeuralGravestone, std::greater<int>> cemetery;
     int replacements = 0;
     int cost_frequency=10;
     std::int64_t cost_amount=100;
     std::int64_t starting_amount = 1000;
     std::int64_t bank_redistributed_this_tick = 0;
     std::size_t next_unsettled_trade = 0;
-    std::unordered_map<int, double> visible_prices;
+    std::unordered_map<int, Observation> visible_prices;
     std::unordered_map<TraderType, int> type_count;
     std::int64_t reserve_target = 20000;
     int recycle_frequency = 1;

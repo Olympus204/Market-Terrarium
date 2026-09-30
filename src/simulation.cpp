@@ -2,22 +2,104 @@
 #include "trader.hpp"
 #include "trades.hpp"
 #include "decisions.hpp"
+#include "neural_decision.hpp"
 
 #include <stdexcept>
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include <random>
 
 Simulation::Simulation(std::uint64_t seed, int total_cash)
-    : rng(seed)
+    : rng(seed),
+      seed(seed)
 {
     traders.emplace(0, SimpleTrader{0, total_cash, TraderType::random});
 }
 
 void Simulation::snapshot_prices()
 {
-    std::unordered_map<int,double> last_prices = market.get_last_prices();
+    std::unordered_map<int,Observation> last_prices = market.get_last_prices();
     visible_prices = last_prices;
+}
+
+void Simulation::set_living_parent_selection(bool enabled)
+{
+    allow_living_parents = enabled;
+}
+
+std::vector<NeuralParentCandidate> Simulation::get_neural_parent_candidates(int child_id) const
+{
+    std::vector<NeuralParentCandidate> candidates;
+
+    int dead_added = 0;
+
+    for (
+        auto it = cemetery.begin();
+        it != cemetery.end() && dead_added < 5;
+        ++it
+    )
+    {
+        candidates.push_back(
+            NeuralParentCandidate{
+                it->first,
+                it->second.genome
+            }
+        );
+
+        ++dead_added;
+    }
+
+    if (allow_living_parents)
+    {
+        for (int id : active_traders)
+        {
+            if (id == child_id)
+            {
+                continue;
+            }
+
+            auto trader = traders.find(id);
+
+            if (trader == traders.end())
+            {
+                continue;
+            }
+
+            if (
+                trader->second.get_trader_type()
+                != TraderType::neural_evolution
+            )
+            {
+                continue;
+            }
+
+            int age = current_tick - trader->second.get_age(current_tick);
+
+            candidates.push_back(
+                NeuralParentCandidate{
+                    age,
+                    trader->second.get_genome()
+                }
+            );
+        }
+    }
+
+    std::sort(
+        candidates.begin(),
+        candidates.end(),
+        [](const auto& a, const auto& b)
+        {
+            return a.fitness > b.fitness;
+        }
+    );
+
+    if (candidates.size() > 5)
+    {
+        candidates.resize(5);
+    }
+
+    return candidates;
 }
 
 bool Simulation::add_trader(int64_t starting_money, TraderType type)
@@ -27,11 +109,6 @@ bool Simulation::add_trader(int64_t starting_money, TraderType type)
         return false;
     }
     ++last_used_id;
-    auto it = traders.emplace(last_used_id, SimpleTrader{last_used_id, starting_money, type});
-    if (it.second == false)
-    {
-        return false;
-    }
     auto bank = traders.find(0);
     if (bank == traders.end())
     {
@@ -42,9 +119,42 @@ bool Simulation::add_trader(int64_t starting_money, TraderType type)
     {
         return false;
     }
+    auto it = traders.emplace(last_used_id, SimpleTrader{last_used_id, starting_money, type, current_tick});
+    if (it.second == false)
+    {
+        return false;
+    }
     active_trader_index.emplace(last_used_id, active_traders.size());
     active_traders.push_back(last_used_id);
     type_count[type] += 1;
+
+    if (type == TraderType::neural_evolution)
+    {
+        NeuralGenome genome;
+
+        std::uniform_int_distribution<int> random_distribution(0, 9);
+        int random_birth = random_distribution(rng);
+
+        auto candidates = get_neural_parent_candidates(last_used_id);
+
+        if (!candidates.empty() && random_birth != 9)
+        {
+            std::uniform_int_distribution<int> parent_distribution(0, static_cast<int>(candidates.size()) - 1);
+
+            int chosen_index = parent_distribution(rng);
+
+            genome = candidates[chosen_index].genome;
+
+            genome.inherit();
+            genome.mutate(rng);
+        }
+        else
+        {
+            genome.random(rng);
+        }
+
+        traders.at(last_used_id).set_neural_genome(genome);
+    }
     return true;
 }
 
@@ -173,7 +283,7 @@ bool Simulation::introduce_holdings(int instrument_id, int quantity)
         traders.emplace(0, bank);
     }
     it = traders.find(0);
-    int sell_price = visible_prices.at(instrument_id);
+    int sell_price = visible_prices.at(instrument_id).current_price;
     it->second.add_holding(instrument_id,quantity,0);
     bool required_1 = it->second.reserve_holding(instrument_id,quantity);
     if (!required_1)
@@ -294,7 +404,7 @@ bool Simulation::liquidate_trader(int trader_id)
         std::swap(active_traders[index_position], active_traders.back());
         active_trader_index[last_id] = index_position;
     }
-
+    trader->second.record_death(current_tick);
     active_traders.pop_back();
     active_trader_index.erase(trader_id);
     return true;
@@ -302,18 +412,19 @@ bool Simulation::liquidate_trader(int trader_id)
 
 void Simulation::tick()
 {
+    std::vector<std::int64_t> total_worths;
     while (!traders_to_add.empty())
         {
-            if (traders.at(0).get_available_cash() < starting_amount)
+            if (traders.at(0).get_available_cash() < starting_amount + reserve_target)
             {
                 break;
             }
-            TraderType type = traders_to_add.back();
+            TraderType type = traders_to_add.front();
             if (!add_trader(starting_amount,type))
             {
                 throw std::logic_error("failed to add trader");
             }
-            traders_to_add.pop_back();
+            traders_to_add.pop_front();
             ++ replacements;
             
         }
@@ -330,7 +441,7 @@ void Simulation::tick()
         {
             continue;
         }
-        int price = std::lround(visible_prices.at(id));
+        int price = std::lround(visible_prices.at(id).current_price);
         bool reserved = reserve_order(0,id,Side::sell,available_quantity,price);
         if (!reserved)
         {
@@ -398,8 +509,9 @@ void Simulation::tick()
         if (available_cash >= 0)
         {
             it->second.reset_health();
-            TraderDecision decision = make_decision(it->second, rng);
-
+            MemoryDecision memory_decision = make_decision(it->second, rng);
+            it->second.update_memory(memory_decision.memory_1,memory_decision.memory_2,memory_decision.memory_3,memory_decision.memory_4);
+            TraderDecision decision = memory_decision.decision;
             if (decision.type == ActionType::cancel)
         {
             bool cancel = cancel_order(decision.order_id,id);
@@ -477,7 +589,11 @@ void Simulation::tick()
                 failed_traders.push_back(id);
             }
         }
-
+        if (current_tick % epoch_size == 0)
+        {
+            total_worths.push_back(it->second.get_total_worth());
+            it->second.record_total_worth(total_worths.back());
+        }
     }
     for (int trader : failed_traders)
     {
@@ -485,9 +601,44 @@ void Simulation::tick()
         TraderType type = traders.at(trader).get_trader_type();
         type_count[type] -= 1;
         traders_to_add.push_back(type);
-        //write tombstone
+        if (type == TraderType::neural_evolution)
+        {
+            NeuralGravestone gravestone = traders.at(trader).write_gravestone();
+            int lifespan = gravestone.death_tick - gravestone.birth_tick;
+            cemetery.emplace(lifespan,gravestone);
+        }
         //remove from simulation
         ++ deaths[type];
+    }
+    if (current_tick % epoch_size == 0 && can_learn && !total_worths.empty())
+    {
+        std::sort(total_worths.begin(), total_worths.end());
+        int median_position = lround(total_worths.size() / 2);
+        std::int64_t median_value = 0;
+        if (median_position >= 0)
+        {
+            median_value = total_worths.at(median_position);
+        }
+        if (is_median_worth && median_value > 0)
+        {
+            median_worth_last_epoch = median_worth;
+            median_worth = median_value;
+            is_median_worth_last_epoch = true;
+            for (int id : active_traders)
+            {
+                auto trader = traders.find(id);
+                if (trader == traders.end())
+                {
+                    throw std::logic_error ("could not find trader to learn");
+                }
+                trader->second.learn(median_worth, median_worth_last_epoch);
+            }
+        }
+        else if (median_value > 0)
+        {
+            median_worth = median_value;
+            is_median_worth = true;
+        }
     }
     current_tick += 1;
 }
@@ -575,6 +726,7 @@ SimulationSnapshot Simulation::get_snapshot()
 {
     SimulationSnapshot snapshot;
     snapshot.tick = current_tick;
+    snapshot.seed = seed;
 
     //instruments
     const auto& names = market.get_instrument_names();
@@ -618,6 +770,16 @@ SimulationSnapshot Simulation::get_snapshot()
     {
         snapshot.portfolio_rebalancer = 0;
     }
+    auto ne_count = type_count.find(TraderType::neural_evolution);
+    if (ne_count != type_count.end())
+    {
+        snapshot.neural_evolution = type_count.at(TraderType::neural_evolution);
+    }
+    else
+    {
+        snapshot.neural_evolution = 0;
+    }
+    
     std::int64_t random_total_cash = 0;
     std::int64_t random_total_holdings_worth = 0;
     std::map<int,int> random_holdings;
@@ -630,6 +792,10 @@ SimulationSnapshot Simulation::get_snapshot()
     std::int64_t mr_total_holdings_worth = 0;
     std::map<int,int> mr_holdings;
     double mr_cash_fraction = 0;
+    std::int64_t ne_total_cash = 0;
+    std::int64_t ne_total_holdings_worth = 0;
+    std::map<int,int> ne_holdings;
+    double ne_cash_fraction = 0;
     for (const auto& id : active_traders)
     {
         const auto& trader = traders.at(id);
@@ -638,7 +804,7 @@ SimulationSnapshot Simulation::get_snapshot()
         std::int64_t total_holdings_worth = 0;
         for(const auto& [instrument_id, position] : positions)
         {
-            total_holdings_worth += position.quantity * snapshot.instrument_reference_price.at(instrument_id);
+            total_holdings_worth += position.quantity * snapshot.instrument_reference_price.at(instrument_id).current_price;
             if (trader.get_trader_type() == TraderType::random)
             {
                 random_holdings[instrument_id] += position.quantity;
@@ -650,6 +816,10 @@ SimulationSnapshot Simulation::get_snapshot()
             else if (trader.get_trader_type() == TraderType::portfolio_rebalancer)
             {
                 pr_holdings[instrument_id] += position.quantity;
+            }
+            else if (trader.get_trader_type() == TraderType::neural_evolution)
+            {
+                ne_holdings[instrument_id] += position.quantity;
             }
         }
         std::int64_t total_worth = total_cash + total_holdings_worth;
@@ -675,6 +845,12 @@ SimulationSnapshot Simulation::get_snapshot()
             mr_total_cash += total_cash;
             mr_total_holdings_worth += total_worth;
             mr_cash_fraction += cash_fraction;
+        }
+        else if (trader.get_trader_type() == TraderType::neural_evolution)
+        {
+            ne_total_cash += total_cash;
+            ne_total_holdings_worth += total_worth;
+            ne_cash_fraction += cash_fraction;
         }
     }
     snapshot.random_cash = 0;
@@ -704,6 +880,15 @@ SimulationSnapshot Simulation::get_snapshot()
         snapshot.portfolio_rebalancer_portfolio_value = pr_total_holdings_worth / snapshot.portfolio_rebalancer;
         snapshot.portfolio_rebalancer_cash_fraction = pr_cash_fraction / snapshot.portfolio_rebalancer;
     }
+    snapshot.neural_evolution_cash = 0;
+    snapshot.neural_evolution_portfolio_value = 0;
+    snapshot.neural_evolution_cash_fraction = 0;
+    if (snapshot.neural_evolution > 0)
+    {
+        snapshot.neural_evolution_cash = ne_total_cash / snapshot.neural_evolution;
+        snapshot.neural_evolution_portfolio_value = ne_total_holdings_worth / snapshot.neural_evolution;
+        snapshot.neural_evolution_cash_fraction = ne_cash_fraction / snapshot.neural_evolution;
+    }
 
     for (int id : snapshot.instrument_ids)
     {
@@ -726,7 +911,13 @@ SimulationSnapshot Simulation::get_snapshot()
         {
             pr = pr_it->second;
         }
-        int total = random + mr + pr + bank;
+        int ne = 0;
+        auto ne_it = ne_holdings.find(id);
+        if (ne_it != ne_holdings.end())
+        {
+            ne = ne_it->second;
+        }
+        int total = random + mr + pr + ne + bank;
         if (total != 0)
         {
             double random_fraction = static_cast<double>(random) / static_cast<double>(total);
@@ -735,9 +926,53 @@ SimulationSnapshot Simulation::get_snapshot()
             snapshot.mean_reversion_percentage_of_each_instrument[id] = lround(mr_fraction * 100);
             double pr_fraction = static_cast<double>(pr) / static_cast<double>(total);
             snapshot.portfolio_rebalancer_percentage_of_each_instrument[id] = lround(pr_fraction * 100);
+            double ne_fraction = static_cast<double>(ne) / static_cast<double>(total);
+            snapshot.neural_evolution_percentage_of_each_instrument[id] = lround(ne_fraction * 100);
             double bank_fraction = static_cast<double>(bank) / static_cast<double>(total);
             snapshot.bank_percentage_of_each_instrument[id] = lround(bank_fraction * 100);
         }
+    }
+    std::vector<int> neural_ids;
+
+    for (int id : active_traders)
+    {
+        const auto& trader = traders.at(id);
+
+        if (trader.get_trader_type() == TraderType::neural_evolution)
+        {
+            neural_ids.push_back(id);
+        }
+    }
+
+    std::sort(
+        neural_ids.begin(),
+        neural_ids.end(),
+        [&](int a, int b)
+        {
+            return traders.at(a).get_age(current_tick)
+                > traders.at(b).get_age(current_tick);
+        }
+    );
+
+    int count = std::min(5, static_cast<int>(neural_ids.size()));
+
+    for (int i = 0; i < count; ++i)
+    {
+        const auto& trader = traders.at(neural_ids[i]);
+
+        OldTraderSnapshot old;
+        old.trader_id = neural_ids[i];
+        old.age = trader.get_age(current_tick);
+        old.cash = trader.get_total_cash();
+        old.wealth = trader.get_total_worth();
+
+        for (const auto& [instrument_id, position] :
+            trader.get_current_positions())
+        {
+            old.holdings[instrument_id] = position.quantity;
+        }
+
+        snapshot.oldest_neural_traders.push_back(std::move(old));
     }
 
     //bank
@@ -772,7 +1007,12 @@ SimulationSnapshot Simulation::get_snapshot()
         {
             snapshot.portfolio_rebalancer_deaths += number;
         }
+        else if (type == TraderType::neural_evolution)
+        {
+            snapshot.neural_evolution_deaths += number;
+        }
     }
+    snapshot.longest_neural_lifespan = cemetery.begin()->first;
     snapshot.replacements = replacements;
     const auto& active_orders = market.get_active_orders();
     snapshot.active_orders = static_cast<int>(active_orders.size());

@@ -117,3 +117,21 @@ const SellBook& OrderBook::get_sells() const
 {
     return sells;
 }
+
+std::optional<int> OrderBook::best_buy()
+{
+    if (!buys.empty())
+    {
+        return buys.begin()->second.front().price;
+    }
+    return std::nullopt;
+}
+
+std::optional<int> OrderBook::best_sell()
+{
+    if (!sells.empty())
+    {
+        return sells.begin()->second.front().price;
+    }
+    return std::nullopt;
+}

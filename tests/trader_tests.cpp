@@ -240,8 +240,8 @@ void cancelation_test_5()
 void bankruptcy_test_1()
 {
     SimpleTrader trader{1,1000,TraderType::none};
-    std::unordered_map<int,double> prices;
-    prices[1] = 100;
+    std::unordered_map<int,Observation> prices;
+    prices[1] = {100,0,0};
     trader.update_observed_prices(prices);
     require(trader.reserve_cash(100), "failed cash reserve 1");
     require(trader.confirm_order(0,1,Side::buy,100,1), "failed to submit order one");
@@ -258,8 +258,8 @@ void bankruptcy_test_1()
 void bankruptcy_test_2()
 {
     SimpleTrader trader{1,1000,TraderType::none};
-    std::unordered_map<int,double> prices;
-    prices[1] = 100;
+    std::unordered_map<int,Observation> prices;
+    prices[1] = {100,0,0};
     trader.update_observed_prices(prices);
     require(trader.reserve_cash(100), "failed cash reserve 1");
     require(trader.confirm_order(0,1,Side::buy,100,1), "failed to submit order one");
@@ -276,8 +276,8 @@ void bankruptcy_test_2()
 void bankruptcy_test_3()
 {
     SimpleTrader trader{1,1000,TraderType::none};
-    std::unordered_map<int,double> prices;
-    prices[1] = 100;
+    std::unordered_map<int,Observation> prices;
+    prices[1] = {100,0,0};
     trader.update_observed_prices(prices);
     trader.add_holding(1,10,100);
     require(trader.reserve_cash(100), "failed cash reserve 1");
@@ -290,9 +290,9 @@ void bankruptcy_test_3()
 void bankruptcy_test_4()
 {
     SimpleTrader trader{1,1,TraderType::none};
-    std::unordered_map<int,double> prices;
-    prices[1] = 567;
-    prices[2] = 112;
+    std::unordered_map<int,Observation> prices;
+    prices[1] = {567,0,0};
+    prices[2] = {112,0,0};
     trader.update_observed_prices(prices);
     trader.add_holding(1,1,567);
     trader.add_holding(2,5,112);
@@ -306,8 +306,8 @@ void bankruptcy_test_4()
 void bankruptcy_test_5()
 {
     SimpleTrader trader{1,1,TraderType::none};
-    std::unordered_map<int,double> prices;
-    prices[1] = 100;
+    std::unordered_map<int,Observation> prices;
+    prices[1] = {100,0,0};
     trader.update_observed_prices(prices);
     trader.add_holding(1,2,100);
     require(trader.apply_cost(92), "failed to pay fine");
@@ -319,10 +319,10 @@ void bankruptcy_test_5()
 void bankruptcy_test_6()
 {
     SimpleTrader trader{1,1,TraderType::none};
-    std::unordered_map<int,double> prices;
-    prices[1] = 180;
-    prices[2] = 360;
-    prices[3] = 270;
+    std::unordered_map<int,Observation> prices;
+    prices[1] = {180,0,0};
+    prices[2] = {360,0,0};
+    prices[3] = {270,0,0};
     trader.update_observed_prices(prices);
     trader.add_holding(1,1,180);
     trader.add_holding(2,1,360);
@@ -337,9 +337,9 @@ void bankruptcy_test_6()
 void bankruptcy_test_7()
 {
     SimpleTrader trader{1,1,TraderType::none};
-    std::unordered_map<int,double> prices;
-    prices[1] = 180;
-    prices[2] = 360;
+    std::unordered_map<int,Observation> prices;
+    prices[1] = {180,0,0};
+    prices[2] = {360,0,0};
     trader.update_observed_prices(prices);
     trader.add_holding(1,10,180);
     trader.add_holding(2,5,360);
@@ -353,29 +353,29 @@ void bankruptcy_test_7()
 void observation_test()
 {
     SimpleTrader trader{1,1,TraderType::none};
-    std::unordered_map<int,double> prices;
-    prices[1] = 100;
+    std::unordered_map<int,Observation> prices;
+    prices[1] = {100,0,0};
     trader.update_observed_prices(prices);
     auto observation = trader.observed_price(1);
-    require(observation.at(0) == 100, "incorrect observation 1");
-    prices[1] = 105;
+    require(observation.at(0).current_price == 100, "incorrect observation 1");
+    prices[1] = {105,0,0};
     trader.update_observed_prices(prices);
     observation = trader.observed_price(1);
-    require(observation.at(0) == 100, "incorrect observation 2");
-    require(observation.at(1) == 105, "incorrect observation 3");
-    prices[1] = 110;
+    require(observation.at(0).current_price == 100, "incorrect observation 2");
+    require(observation.at(1).current_price == 105, "incorrect observation 3");
+    prices[1] = {110,0,0};
     trader.update_observed_prices(prices);
     observation = trader.observed_price(1);
-    require(observation.at(0) == 100, "incorrect observation 4");
-    require(observation.at(1) == 105, "incorrect observation 5");
-    require(observation.at(2) == 110, "incorrect observation 6");
-    prices[1] = 110;
+    require(observation.at(0).current_price == 100, "incorrect observation 4");
+    require(observation.at(1).current_price == 105, "incorrect observation 5");
+    require(observation.at(2).current_price == 110, "incorrect observation 6");
+    prices[1] = {110,0,0};
     trader.update_observed_prices(prices);
     observation = trader.observed_price(1);
-    require(observation.at(0) == 100, "incorrect observation 7");
-    require(observation.at(1) == 105, "incorrect observation 8");
-    require(observation.at(2) == 110, "incorrect observation 9");
-    require(observation.at(3) == 110, "incorrect observation 10");
+    require(observation.at(0).current_price == 100, "incorrect observation 7");
+    require(observation.at(1).current_price == 105, "incorrect observation 8");
+    require(observation.at(2).current_price == 110, "incorrect observation 9");
+    require(observation.at(3).current_price == 110, "incorrect observation 10");
 }
 
 

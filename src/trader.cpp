@@ -6,8 +6,9 @@
 #include <cassert>
 #include <stdexcept>
 
-SimpleTrader::SimpleTrader(int trader_id, std::int64_t starting_cash, TraderType trader_type)
+SimpleTrader::SimpleTrader(int trader_id, std::int64_t starting_cash, TraderType trader_type, int current_tick)
     : id(trader_id),
+      birth_tick(current_tick),
       cash(starting_cash),
       reserved_cash(0),
       type(trader_type)
@@ -89,6 +90,50 @@ int SimpleTrader::get_total_holding(int instrument_id) const
     }
     int current = it->second.quantity;
     return current;
+}
+
+std::int64_t SimpleTrader::get_total_worth() const
+{
+    std::int64_t worth = cash;
+    for (const auto& [id,observation] : observed_prices)
+    {
+        int quantity = 0;
+        auto it = positions.find(id);
+        if (it != positions.end())
+        {
+            quantity = it->second.quantity;
+        }
+        worth += quantity * observation.back().current_price;
+    }
+    return worth;
+}
+
+bool SimpleTrader::record_total_worth(std::int64_t new_total_worth)
+{
+    if (is_worth_current_epoch)
+    {
+        total_worth_last_epoch = total_worth;
+        is_worth_last_epoch = true;
+        return true;
+    }
+    else
+    {
+        total_worth = new_total_worth;
+        is_worth_current_epoch = true;
+        return true;
+    }
+    return false;
+}
+
+std::optional<std::int64_t> SimpleTrader::get_worth_change()
+{
+    std::int64_t change = 0;
+    if (is_worth_last_epoch && is_worth_current_epoch)
+    {
+        change = total_worth_last_epoch - total_worth;
+        return change;
+    }
+    return std::nullopt;
 }
 
 const std::unordered_map<int, TraderOrder>& SimpleTrader::get_active_orders() const
@@ -330,20 +375,20 @@ bool SimpleTrader::confirm_cancel(int order_id, int instrument_id, Side side, in
     return false;
 }
 
-void SimpleTrader::update_observed_prices(const std::unordered_map<int, double>& prices)
+void SimpleTrader::update_observed_prices(const std::unordered_map<int, Observation>& prices)
 {
     for (const auto& [id, price] : prices)
     {
         auto& history = observed_prices[id];
         history.push_back(price);
-        if (history.size() > memory)
+        if (history.size() > static_cast<std::size_t>(memory))
         {
             history.pop_front();
         }
     }
 }
 
-std::deque<double> SimpleTrader::observed_price(int instrument_id) const
+std::deque<Observation> SimpleTrader::observed_price(int instrument_id) const
 {
     auto it = observed_prices.find(instrument_id);
     if (it == observed_prices.end())
@@ -353,7 +398,7 @@ std::deque<double> SimpleTrader::observed_price(int instrument_id) const
     return it->second;
 }
 
-const std::unordered_map<int, std::deque<double>>& SimpleTrader::get_observed_prices() const
+const std::unordered_map<int, std::deque<Observation>>& SimpleTrader::get_observed_prices() const
 {
     return observed_prices;
 }
@@ -444,7 +489,7 @@ TraderDecision SimpleTrader::bankruptcy_check()
             {
                 throw std::logic_error("observed prices missing instrument");
             }
-            int liquidation_price = std::ceil(price->second.back() * 0.9);
+            int liquidation_price = std::ceil(price->second.back().current_price * 0.9);
             std::int64_t quantity_needed = (shortfall + liquidation_price - 1) / liquidation_price;
             if (available_ammount >= quantity_needed)
             {
@@ -530,4 +575,52 @@ bool SimpleTrader::remove_holding(int instrument_id, int quantity)
         positions.erase(holding);
     }
     return true;
+}
+
+void SimpleTrader::record_death(int current_tick)
+{
+    death_tick = current_tick;
+}
+
+int SimpleTrader::get_age(int current_tick) const
+{
+    return current_tick - birth_tick;
+}
+
+bool SimpleTrader::set_neural_genome(NeuralGenome neural_genome)
+{
+    genome = neural_genome;
+    return true;
+}
+
+NeuralGravestone SimpleTrader::write_gravestone()
+{
+    NeuralGravestone gravestone;
+    gravestone.birth_tick = birth_tick;
+    gravestone.death_tick = death_tick;
+    gravestone.genome = genome;
+    gravestone.id = id;
+    return gravestone;
+}
+
+const NeuralGenome& SimpleTrader::get_genome() const
+{
+    return genome;
+}
+
+void SimpleTrader::update_memory(std::map<int,double> memory_1, std::map<int,double> memory_2, std::map<int,double> memory_3, std::map<int,double> memory_4)
+{
+    genome.memory_1 = memory_1;
+    genome.memory_2 = memory_2;
+    genome.memory_3 = memory_3;
+    genome.memory_4 = memory_4;
+}
+
+void SimpleTrader::learn(std::int64_t median_this_epoch, std::int64_t median_last_epoch)
+{
+    auto worth_change = get_worth_change();
+    if (worth_change.has_value())
+    {
+        genome.learn(worth_change.value(), median_this_epoch, median_last_epoch);
+    }
 }

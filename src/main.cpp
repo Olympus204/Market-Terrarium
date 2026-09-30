@@ -16,32 +16,39 @@
 
 int main()
 {
-    Simulation sim{1001, 150000};
+    Simulation sim{10015, 2000000};
 
     sim.add_instrument(1, "ALPHA", 100);
     sim.add_instrument(2,"BETA",100);
     sim.add_instrument(3,"GAMMA",100);
     sim.add_instrument(4,"DELTA",100);
 
-    sim.set_recurring_costs(100,100);
+    sim.set_recurring_costs(1,2);
     sim.introduce_holdings(1, 200);
     sim.introduce_holdings(2, 200);
     sim.introduce_holdings(3, 200);
     sim.introduce_holdings(4, 200);
-    sim.set_bank_recycling(5000,1,0.25);
-    for (int i = 1; i <= 30; ++i)
+    sim.set_bank_recycling(5000,1,0);
+    sim.set_living_parent_selection(true);
+
+    for (int i = 1; i <= 100; ++i)
     {
-        sim.queue_trader(TraderType::mean_value);
         sim.queue_trader(TraderType::random);
-        sim.queue_trader(TraderType::portfolio_rebalancer);
     }
+
+    for (int i = 1; i <= 100; ++i)
+    {
+        sim.queue_trader(TraderType::neural_evolution);
+    }
+
 
     float ticks_per_second = 20.0;
     bool running = true;
 
     std::vector<double> tick_history;
     std::map<int, std::vector<double>> price_history;
-
+    std::vector<double> lifespan_history;
+    std::vector<double> oldest_living_history;
     SimulationSnapshot latest_snapshot = sim.get_snapshot();
 
     auto record_snapshot = [&]()
@@ -52,10 +59,26 @@ int main()
             static_cast<double>(latest_snapshot.tick)
         );
 
+        double oldest_living = 0.0;
+
+        if (!latest_snapshot.oldest_neural_traders.empty())
+        {
+            oldest_living =
+                static_cast<double>(
+                    latest_snapshot.oldest_neural_traders.front().age
+                );
+        }
+
+        oldest_living_history.push_back(oldest_living);
+
+        lifespan_history.push_back(
+                latest_snapshot.longest_neural_lifespan
+            );
+
         for (int id : latest_snapshot.instrument_ids)
         {
             price_history[id].push_back(
-                latest_snapshot.instrument_reference_price.at(id)
+                latest_snapshot.instrument_reference_price.at(id).current_price
             );
         }
     };
@@ -150,8 +173,94 @@ int main()
             ImGui::GetMainViewport()
         );
 
+        ImGui::Begin("Lifespans");
+        ImGui::Text("Tick: %d", latest_snapshot.tick);
+        ImGui::Text("Seed: %d", latest_snapshot.seed);
+
+        double x_max_l = static_cast<double>(latest_snapshot.tick);
+        double x_min_l = 0;
+
+        double y_min_l = 0.0;
+        double y_max_l = 1.0;
+
+        for (std::size_t i = 0; i < tick_history.size(); ++i)
+        {
+            if (i < lifespan_history.size())
+            {
+                y_max_l = std::max(
+                    y_max_l,
+                    lifespan_history[i]
+                );
+            }
+
+            if (i < oldest_living_history.size())
+            {
+                y_max_l = std::max(
+                    y_max_l,
+                    oldest_living_history[i]
+                );
+            }
+        }
+
+        double padding_l = y_max_l * 0.10;
+        double range_l = y_max_l - y_min_l;
+
+        ImVec2 plot_size_l = ImGui::GetContentRegionAvail();
+        if (ImPlot::BeginPlot("Lifespan History", plot_size_l))
+        {
+            ImPlot::SetupAxes("Tick", "Lifespan");
+
+            ImPlot::SetupAxisLimits(
+                ImAxis_X1,
+                x_min_l,
+                x_max_l,
+                ImGuiCond_Always
+            );
+
+            ImPlot::SetupAxisLimits(
+                ImAxis_Y1,
+                0.0,
+                y_max_l + padding_l,
+                ImGuiCond_Always
+            );
+            const int count = static_cast<int>(
+                    std::min(tick_history.size(), lifespan_history.size()));
+
+            if (!tick_history.empty() && !lifespan_history.empty())
+            {
+                ImPlot::PlotLine(
+                    "Longest completed",
+                    tick_history.data(),
+                    lifespan_history.data(),
+                    static_cast<int>(
+                        std::min(
+                            tick_history.size(),
+                            lifespan_history.size()
+                        )
+                    )
+                );
+
+                ImPlot::PlotLine(
+                    "Oldest living",
+                    tick_history.data(),
+                    oldest_living_history.data(),
+                    static_cast<int>(
+                        std::min(
+                            tick_history.size(),
+                            oldest_living_history.size()
+                        )
+                    )
+                );
+            }
+
+            ImPlot::EndPlot();
+        }
+
+        ImGui::End();
+
         ImGui::Begin("Market Simulation");
         ImGui::Text("Tick: %d", latest_snapshot.tick);
+        ImGui::Text("Seed: %d", latest_snapshot.seed);
 
         double window_width = 600.0;
 
@@ -253,6 +362,105 @@ int main()
             latest_snapshot.portfolio_rebalancer_cash_fraction
         );
 
+        ImGui::Text(
+            "Neural Evolution: %d | Cash: %lld | Wealth: %lld | Cash %%: %.1f",
+            latest_snapshot.neural_evolution,
+            static_cast<long long>(latest_snapshot.neural_evolution_cash),
+            static_cast<long long>(latest_snapshot.neural_evolution_portfolio_value),
+            latest_snapshot.neural_evolution_cash_fraction
+        );
+
+
+        ImGui::End();
+
+        ImGui::Begin("Oldest Neural Traders");
+
+        if (latest_snapshot.oldest_neural_traders.empty())
+        {
+            ImGui::Text("No living neural traders");
+        }
+        else
+        {
+            const int fixed_columns = 4;
+            const int instrument_columns =
+                static_cast<int>(latest_snapshot.instrument_ids.size());
+
+            const int total_columns =
+                fixed_columns + instrument_columns;
+
+            if (ImGui::BeginTable(
+                    "OldestNeuralTable",
+                    total_columns,
+                    ImGuiTableFlags_Borders |
+                    ImGuiTableFlags_RowBg |
+                    ImGuiTableFlags_ScrollX))
+            {
+                ImGui::TableSetupColumn("ID");
+                ImGui::TableSetupColumn("Age");
+                ImGui::TableSetupColumn("Cash");
+                ImGui::TableSetupColumn("Wealth");
+
+                for (int instrument_id :
+                    latest_snapshot.instrument_ids)
+                {
+                    const auto& name =
+                        latest_snapshot.instrument_names.at(
+                            instrument_id
+                        );
+
+                    ImGui::TableSetupColumn(name.c_str());
+                }
+
+                ImGui::TableHeadersRow();
+
+                for (const auto& old :
+                    latest_snapshot.oldest_neural_traders)
+                {
+                    ImGui::TableNextRow();
+
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%d", old.trader_id);
+
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%d", old.age);
+
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text(
+                        "%lld",
+                        static_cast<long long>(old.cash)
+                    );
+
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::Text(
+                        "%lld",
+                        static_cast<long long>(old.wealth)
+                    );
+
+                    int column = 4;
+
+                    for (int instrument_id :
+                        latest_snapshot.instrument_ids)
+                    {
+                        int quantity = 0;
+
+                        auto holding =
+                            old.holdings.find(instrument_id);
+
+                        if (holding != old.holdings.end())
+                        {
+                            quantity = holding->second;
+                        }
+
+                        ImGui::TableSetColumnIndex(column);
+                        ImGui::Text("%d", quantity);
+
+                        ++column;
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+        }
 
         ImGui::End();
 
@@ -294,12 +502,13 @@ int main()
 
         ImGui::Begin("Ownership");
 
-        if (ImGui::BeginTable("OwnershipTable", 5))
+        if (ImGui::BeginTable("OwnershipTable", 6))
         {
             ImGui::TableSetupColumn("Instrument");
             ImGui::TableSetupColumn("Random");
             ImGui::TableSetupColumn("Mean");
             ImGui::TableSetupColumn("Rebalancer");
+            ImGui::TableSetupColumn("Neural Evolution");
             ImGui::TableSetupColumn("Bank");
 
             ImGui::TableHeadersRow();
@@ -312,6 +521,7 @@ int main()
                 int random = 0;
                 int mean = 0;
                 int rebalancer = 0;
+                int evolution = 0;
                 int bank = 0;
 
                 if (latest_snapshot.random_percentage_of_each_instrument.contains(id))
@@ -330,6 +540,12 @@ int main()
                 {
                     rebalancer =
                         latest_snapshot.portfolio_rebalancer_percentage_of_each_instrument.at(id);
+                }
+
+                if (latest_snapshot.neural_evolution_percentage_of_each_instrument.contains(id))
+                {
+                    evolution =
+                        latest_snapshot.neural_evolution_percentage_of_each_instrument.at(id);
                 }
 
                 if (latest_snapshot.bank_percentage_of_each_instrument.contains(id))
@@ -353,6 +569,9 @@ int main()
                 ImGui::Text("%d%%", rebalancer);
 
                 ImGui::TableSetColumnIndex(4);
+                ImGui::Text("%d%%", evolution);
+
+                ImGui::TableSetColumnIndex(5);
                 ImGui::Text("%d%%", bank);
             }
 
@@ -378,6 +597,12 @@ int main()
             latest_snapshot.portfolio_rebalancer_deaths
         );
 
+        ImGui::Text(
+            "Neural Evolution: %d",
+            latest_snapshot.neural_evolution_deaths
+        );
+
+
         ImGui::Separator();
 
         ImGui::Text(
@@ -397,6 +622,18 @@ int main()
 
         ImGui::Text("Traders created: %d",
                     latest_snapshot.replacements);
+
+        ImGui::Text("Longest completed lifespan: %d",
+                    latest_snapshot.longest_neural_lifespan
+                );
+
+                if (!latest_snapshot.oldest_neural_traders.empty())
+                {
+                    ImGui::Text(
+                        "Oldest living neural: %d",
+                        latest_snapshot.oldest_neural_traders.front().age
+                    );
+                }
 
         ImGui::End();
 
