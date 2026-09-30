@@ -590,12 +590,12 @@ void Simulation::tick()
                     failed_traders.push_back(id);
                 }
             }
-            if (current_tick % epoch_size == 0)
+        }
+        if (current_tick % epoch_size == 0)
             {
                 total_worths.push_back(it->second.get_total_worth());
                 it->second.record_total_worth(total_worths.back());
             }
-        }
     }
     for (int trader : failed_traders)
     {
