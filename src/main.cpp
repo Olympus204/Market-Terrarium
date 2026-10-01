@@ -16,7 +16,7 @@
 
 int main()
 {
-    Simulation sim{10015, 2000000};
+    Simulation sim{10012, 2000000};
 
     sim.add_instrument(1, "ALPHA", 100);
     sim.add_instrument(2,"BETA",100);
@@ -24,6 +24,7 @@ int main()
     sim.add_instrument(4,"DELTA",100);
 
     sim.set_recurring_costs(1,2);
+    sim.set_tax_frequency(true, 10000);
     sim.introduce_holdings(1, 200);
     sim.introduce_holdings(2, 200);
     sim.introduce_holdings(3, 200);
@@ -31,12 +32,12 @@ int main()
     sim.set_bank_recycling(5000,1,0);
     sim.set_living_parent_selection(true);
 
-    for (int i = 1; i <= 100; ++i)
+    for (int i = 1; i <= 160; ++i)
     {
         sim.queue_trader(TraderType::random);
     }
 
-    for (int i = 1; i <= 100; ++i)
+    for (int i = 1; i <= 40; ++i)
     {
         sim.queue_trader(TraderType::neural_evolution);
     }

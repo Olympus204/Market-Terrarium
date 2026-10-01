@@ -81,28 +81,38 @@ struct Simulation
 public:
     Simulation(std::uint64_t seed, int total_cash);
     void snapshot_prices();
+
     void set_living_parent_selection(bool enabled);
     std::vector<NeuralParentCandidate> get_neural_parent_candidates(int child_id) const;
     bool add_trader(int64_t starting_money, TraderType type);
     bool queue_trader(TraderType type);
+
     bool add_instrument(int id, std::string name, int starting_price);
+
     void settle_accounts();
     bool submit_order(int trader_id, int instrument_id, Side side, int quantity, int price);
     bool cancel_order(int order_id, int trader_id);
     bool introduce_holdings(int instrument_id, int quantity);
     bool reserve_order(int trader_id, int instrument_id, Side side, int quantity, int price);
+
     bool charge_trader(int trader_id, std::int64_t amount);
     bool liquidate_trader(int trader_id);
+
     void tick();
+
     Health get_trader_health(int trader_id);
     std::int64_t get_trader_available_cash(int trader_id) const;
     int get_trader_available_holdings(int trader_id, int instrument_id) const;
     int get_trader_total_holdings(int trader_id, int instrument_id) const;
     const std::unordered_map<int, Position>& get_current_trader_positions(int trader_id) const;
     const std::unordered_map<int, TraderOrder>& get_trader_active_orders(int trader_id) const;
+
     void set_recurring_costs(int frequency, std::int64_t amount);
     void set_starting_amount(std::int64_t cash);
+    void set_tax_frequency(bool enabled, int tax_year_length);
+
     SimulationSnapshot get_snapshot();
+
     void set_bank_recycling(std::int64_t target, int frequency, double fraction);
     int get_total_trades() const;
 private:
@@ -113,28 +123,36 @@ private:
     std::vector<int> active_traders;
     std::unordered_map<int, size_t> active_trader_index;
     std::deque<TraderType> traders_to_add;
-    int epoch_size = 50;
+
     std::int64_t median_worth = 0;
     std::int64_t median_worth_last_epoch = 0;
     bool is_median_worth = false;
     bool is_median_worth_last_epoch = false;
-    
-    bool can_learn = true;
 
+    int epoch_size = 50;
+    bool can_learn = true;
     bool allow_living_parents = false;
+
     int last_used_id = 0;
     int current_tick = 1;
+
     std::map<TraderType,int> deaths;
     std::multimap<int, NeuralGravestone, std::greater<int>> cemetery;
     int replacements = 0;
+
     int cost_frequency=10;
     std::int64_t cost_amount=100;
     std::int64_t starting_amount = 1000;
     std::int64_t bank_redistributed_this_tick = 0;
+    std::int64_t reserve_target = 20000;
+    bool is_taxes = false;
+    int tax_season = 2000;
+
     std::size_t next_unsettled_trade = 0;
     std::unordered_map<int, Observation> visible_prices;
+
     std::unordered_map<TraderType, int> type_count;
-    std::int64_t reserve_target = 20000;
+
     int recycle_frequency = 1;
     double recycle_fraction = 0.1;
 };

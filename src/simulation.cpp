@@ -505,6 +505,20 @@ void Simulation::tick()
                 throw std::logic_error("trader in active traders not in traders");
             }
         }
+
+        if (current_tick % tax_season == 0 && is_taxes)
+        {
+            std::int64_t taxes = it->second.calculate_taxes();
+            if (taxes > 0)
+            {
+                bool charged = charge_trader(id, taxes);
+                if (!charged)
+                {
+                    throw std::logic_error("trader refuses to pay HMRC");
+                }
+            }
+            it->second.record_tax_season();
+        }
         std::int64_t available_cash = it->second.get_available_cash();
         if (available_cash >= 0)
         {
@@ -722,6 +736,12 @@ void Simulation::set_starting_amount(std::int64_t cash)
         throw std::logic_error("cannot have negative starting amount");
     }
     starting_amount = cash;
+}
+
+void Simulation::set_tax_frequency(bool enabled, int tax_year_length)
+{
+    is_taxes = enabled;
+    tax_season = tax_year_length;
 }
 
 SimulationSnapshot Simulation::get_snapshot()

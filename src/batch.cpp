@@ -19,7 +19,6 @@
 #include <thread>
 #include <exception>
 #include <functional>
-
 struct PriceStats
 {
     double sum = 0.0;
@@ -95,64 +94,21 @@ struct PriceStats
             static_cast<double>(return_samples);
     }
 };
-
-struct EliteTraderSample
-{
-    int trader_id = -1;
-    int age = 0;
-    std::int64_t cash = 0;
-    std::int64_t wealth = 0;
-    std::array<int, 4> holdings{0, 0, 0, 0};
-    int total_holdings() const
-    {
-        return holdings[0]
-             + holdings[1]
-             + holdings[2]
-             + holdings[3];
-    }
-};
-
-struct EliteSample
-{
-    int tick = 0;
-
-    int longest_completed_lifespan = 0;
-
-    int total_trades = 0;
-    int active_orders = 0;
-
-    int neural_active = 0;
-    int neural_deaths = 0;
-
-    std::int64_t bank_cash = 0;
-
-    std::array<EliteTraderSample, 5> traders;
-};
-
 struct RunResult
 {
     SimulationSnapshot final_snapshot;
-
     std::map<int, PriceStats> price_stats;
-
     double mean_price_spread = 0.0;
     double max_price_spread = 0.0;
-
     double mean_relative_spread = 0.0;
     double max_relative_spread = 0.0;
-
     double runtime_seconds = 0.0;
     int last_trade_tick = 0;
-
     int active_trade_ticks = 0;
     int trades_last_1000_ticks = 0;
     double mean_active_orders = 0.0;
-
     int longest_neural_lifespan = 0;
-
-    std::vector<EliteSample> elite_history;
 };
-
 struct LiveRunState
 {
     bool active = false;
@@ -177,19 +133,20 @@ struct LiveRunState
     int total_deaths = 0;
     int neural_deaths = 0;
     int longest_neural_lifespan = 0;
+    int oldest_living_neural_id = 0;
+    int oldest_living_neural_age = 0;
+    std::int64_t oldest_living_neural_cash = 0;
+    std::int64_t oldest_living_neural_wealth = 0;
     std::int64_t bank_cash = 0;
     std::array<double, 4> prices{0.0, 0.0, 0.0, 0.0};
     double runtime_seconds = 0.0;
 };
-
 using ProgressCallback =
     std::function<void(int, const SimulationSnapshot&, int)>;
-
 int percentage_or_zero(
     const std::map<int, int>& values,
     int instrument_id
 )
-
 {
     auto it = values.find(instrument_id);
     if (it == values.end())
@@ -198,7 +155,6 @@ int percentage_or_zero(
     }
     return it->second;
 }
-
 void sample_prices(
     const SimulationSnapshot& snapshot,
     std::map<int, PriceStats>& stats,
@@ -208,127 +164,43 @@ void sample_prices(
     double& relative_spread_max,
     int& spread_samples
 )
-
 {
     if (snapshot.instrument_ids.empty())
     {
         return;
     }
-
     double minimum =
         std::numeric_limits<double>::max();
-
     double maximum =
         std::numeric_limits<double>::lowest();
-
     double total_price = 0.0;
-
     for (int id : snapshot.instrument_ids)
     {
         double price =
             snapshot.instrument_reference_price.at(id).current_price;
-
         stats[id].add(price);
         minimum = std::min(minimum, price);
         maximum = std::max(maximum, price);
         total_price += price;
     }
-
     double spread = maximum - minimum;
-
     double mean_price =
         total_price /
         static_cast<double>(
             snapshot.instrument_ids.size()
         );
-
     double relative_spread = 0.0;
-
     if (mean_price > 0.0)
     {
         relative_spread = spread / mean_price;
     }
-
     spread_sum += spread;
-
     spread_max = std::max(spread_max, spread);
-
     relative_spread_sum += relative_spread;
-
     relative_spread_max =
         std::max(relative_spread_max, relative_spread);
-
     ++spread_samples;
-
 }
-
-int holding_or_zero(
-    const std::map<int, int>& holdings,
-    int instrument_id
-)
-{
-    auto it = holdings.find(instrument_id);
-
-    if (it == holdings.end())
-    {
-        return 0;
-    }
-
-    return it->second;
-}
-
-void sample_elite_neurals(
-    const SimulationSnapshot& snapshot,
-    RunResult& result
-)
-{
-    EliteSample sample;
-
-    sample.tick = snapshot.tick;
-    sample.longest_completed_lifespan =
-        snapshot.longest_neural_lifespan;
-
-    sample.total_trades = snapshot.total_trades;
-    sample.active_orders = snapshot.active_orders;
-    sample.neural_active = snapshot.neural_evolution;
-    sample.neural_deaths = snapshot.neural_evolution_deaths;
-    sample.bank_cash = snapshot.bank_cash;
-
-    const std::size_t count = std::min<std::size_t>(
-        5,
-        snapshot.oldest_neural_traders.size()
-    );
-
-    for (std::size_t i = 0; i < count; ++i)
-    {
-        const auto& old =
-            snapshot.oldest_neural_traders[i];
-
-        EliteTraderSample trader;
-
-        trader.trader_id = old.trader_id;
-        trader.age = old.age;
-        trader.cash = old.cash;
-        trader.wealth = old.wealth;
-
-        trader.holdings[0] =
-            holding_or_zero(old.holdings, 1);
-
-        trader.holdings[1] =
-            holding_or_zero(old.holdings, 2);
-
-        trader.holdings[2] =
-            holding_or_zero(old.holdings, 3);
-
-        trader.holdings[3] =
-            holding_or_zero(old.holdings, 4);
-
-        sample.traders[i] = trader;
-    }
-
-    result.elite_history.push_back(sample);
-}
-
 RunResult run_experiment(
     std::uint64_t seed,
     int random_count,
@@ -341,41 +213,37 @@ RunResult run_experiment(
     int sample_every,
     const ProgressCallback& progress_callback
 )
-
 {
     auto start_time =
         std::chrono::steady_clock::now();
-
-    constexpr std::int64_t initial_bank_cash = 2000000;
-
+    // 200 traders start with 1000 each. 250000 leaves a 50000 cash
+    // buffer for replacement timing while keeping the bank scale similar
+    // to the larger GUI experiments.
+    constexpr std::int64_t initial_bank_cash = 250000;
     Simulation sim{seed, static_cast<int>(initial_bank_cash)};
-
     sim.add_instrument(1, "ALPHA", 100);
-
     sim.add_instrument(2, "BETA", 100);
-
     sim.add_instrument(3, "GAMMA", 100);
-
     sim.add_instrument(4, "DELTA", 100);
-
     sim.set_starting_amount(1000);
-
     sim.set_recurring_costs(cost_frequency, cost_amount);
-
-    sim.introduce_holdings(1, 200);
-
-    sim.introduce_holdings(2, 200);
-
-    sim.introduce_holdings(3, 200);
-
-    sim.introduce_holdings(4, 200);
-
+    // Scale the old 300-share / \~500-trader setup down to roughly the
+    // same shares-per-trader ratio.
+    sim.introduce_holdings(1, 120);
+    sim.introduce_holdings(2, 120);
+    sim.introduce_holdings(3, 120);
+    sim.introduce_holdings(4, 120);
+    // Disable redistribution without blocking trader replacement.
+    // reserve_target is also used by the replacement affordability check,
+    // so it must stay at zero here.
     sim.set_bank_recycling(
         0,
         1,
         0.0
     );
-
+    // Build the initial population directly.  The replacement queue is for
+    // traders that die during the simulation; using it for initialisation
+    // makes batch startup depend on the queue-processing semantics in tick().
     auto add_initial_traders = [&](int count, TraderType type, const char* label)
     {
         for (int i = 0; i < count; ++i)
@@ -390,23 +258,19 @@ RunResult run_experiment(
             }
         }
     };
-
     add_initial_traders(random_count, TraderType::random, "random");
-
     add_initial_traders(mean_count, TraderType::mean_value, "mean-value");
-
     add_initial_traders(
         rebalancer_count,
         TraderType::portfolio_rebalancer,
         "rebalancer"
     );
-
     add_initial_traders(
         neural_count,
         TraderType::neural_evolution,
         "neural"
     );
-
+    // Sanity-check immediately, before the first simulated tick.
     {
         const SimulationSnapshot startup = sim.get_snapshot();
         const int requested_population =
@@ -418,7 +282,6 @@ RunResult run_experiment(
             startup.portfolio_rebalancer != rebalancer_count ||
             startup.neural_evolution != neural_count
         )
-
         {
             std::ostringstream message;
             message
@@ -437,16 +300,13 @@ RunResult run_experiment(
             throw std::logic_error(message.str());
         }
     }
-
     RunResult result;
     double spread_sum = 0.0;
     double spread_max = 0.0;
     double relative_spread_sum = 0.0;
     double relative_spread_max = 0.0;
     int spread_samples = 0;
-
     SimulationSnapshot initial = sim.get_snapshot();
-
     result.longest_neural_lifespan = initial.longest_neural_lifespan;
     sample_prices(
         initial,
@@ -457,54 +317,36 @@ RunResult run_experiment(
         relative_spread_max,
         spread_samples
     );
-
     int previous_trade_count = sim.get_total_trades();
-
     int trade_count_1000_ticks_before_end = previous_trade_count;
-
     double active_orders_sum = 0.0;
-
     int active_orders_samples = 0;
-
     auto last_progress_update = start_time;
-
     for (int tick = 1; tick <= ticks; ++tick)
-
     {
         sim.tick();
         int current_trade_count = sim.get_total_trades();
         if (current_trade_count > previous_trade_count)
-
         {
             result.last_trade_tick = tick;
             ++result.active_trade_ticks;
         }
-
         if (tick == ticks - 1000)
         {
             trade_count_1000_ticks_before_end =
-
                 current_trade_count;
         }
-
         previous_trade_count = current_trade_count;
-
         if (tick % sample_every == 0)
         {
             SimulationSnapshot snapshot =
                 sim.get_snapshot();
-
-            sample_elite_neurals(snapshot, result);
-
             active_orders_sum += snapshot.active_orders;
-
             ++active_orders_samples;
-
             result.longest_neural_lifespan = std::max(
                 result.longest_neural_lifespan,
                 snapshot.longest_neural_lifespan
             );
-
             sample_prices(
                 snapshot,
                 result.price_stats,
@@ -514,66 +356,43 @@ RunResult run_experiment(
                 relative_spread_max,
                 spread_samples
             );
-
         }
-
         if (progress_callback)
         {
             auto now = std::chrono::steady_clock::now();
-
             if (
                 tick == ticks ||
                 now - last_progress_update >= std::chrono::seconds(2)
             )
-
             {
                 SimulationSnapshot progress_snapshot = sim.get_snapshot();
                 result.longest_neural_lifespan = std::max(
                     result.longest_neural_lifespan,
                     progress_snapshot.longest_neural_lifespan
                 );
-
                 progress_callback(
                     tick,
                     progress_snapshot,
                     result.last_trade_tick
                 );
-
                 last_progress_update = now;
             }
         }
     }
-
     result.final_snapshot = sim.get_snapshot();
-
-    if (
-        result.elite_history.empty() ||
-        result.elite_history.back().tick
-            != result.final_snapshot.tick
-    )
-    {
-        sample_elite_neurals(
-            result.final_snapshot,
-            result
-        );
-    }
-
     result.longest_neural_lifespan = std::max(
         result.longest_neural_lifespan,
         result.final_snapshot.longest_neural_lifespan
     );
-
     result.trades_last_1000_ticks =
         result.final_snapshot.total_trades
         - trade_count_1000_ticks_before_end;
     if (active_orders_samples > 0)
-
     {
         result.mean_active_orders =
             active_orders_sum
             / static_cast<double>(active_orders_samples);
     }
-
     if (ticks % sample_every != 0)
     {
         sample_prices(
@@ -586,7 +405,6 @@ RunResult run_experiment(
             spread_samples
         );
     }
-
     if (spread_samples > 0)
     {
         result.mean_price_spread =
@@ -596,22 +414,16 @@ RunResult run_experiment(
             relative_spread_sum /
             static_cast<double>(spread_samples);
     }
-
     result.max_price_spread = spread_max;
-
     result.max_relative_spread = relative_spread_max;
-
     auto end_time =
         std::chrono::steady_clock::now();
-
     result.runtime_seconds =
         std::chrono::duration<double>(
             end_time - start_time
         ).count();
-
     return result;
 }
-
 void write_header(std::ofstream& csv)
 {
     csv
@@ -643,6 +455,14 @@ void write_header(std::ofstream& csv)
         << "rebalancer_deaths,"
         << "neural_deaths,"
         << "longest_neural_lifespan,"
+        << "oldest_living_neural_id,"
+        << "oldest_living_neural_age,"
+        << "oldest_living_neural_cash,"
+        << "oldest_living_neural_wealth,"
+        << "oldest_living_neural_alpha,"
+        << "oldest_living_neural_beta,"
+        << "oldest_living_neural_gamma,"
+        << "oldest_living_neural_delta,"
         << "bank_cash,"
         << "random_avg_cash,"
         << "random_avg_wealth,"
@@ -660,14 +480,12 @@ void write_header(std::ofstream& csv)
         << "max_price_spread,"
         << "mean_relative_spread,"
         << "max_relative_spread,";
-
     const std::vector<std::string> names{
         "alpha",
         "beta",
         "gamma",
         "delta"
     };
-
     for (const auto& name : names)
     {
         csv
@@ -685,91 +503,8 @@ void write_header(std::ofstream& csv)
             << name << "_neural_ownership,"
             << name << "_bank_ownership,";
     }
-
     csv << "runtime_seconds\n";
 }
-
-void write_elite_header(std::ofstream& csv)
-{
-    csv
-        << "experiment_type,"
-        << "seed,"
-        << "tick,"
-        << "longest_completed_lifespan,"
-        << "total_trades,"
-        << "active_orders,"
-        << "neural_active,"
-        << "neural_deaths,"
-        << "bank_cash";
-
-    for (int rank = 1; rank <= 5; ++rank)
-    {
-        csv
-            << ",oldest_" << rank << "_id"
-            << ",oldest_" << rank << "_age"
-            << ",oldest_" << rank << "_cash"
-            << ",oldest_" << rank << "_wealth"
-            << ",oldest_" << rank << "_alpha"
-            << ",oldest_" << rank << "_beta"
-            << ",oldest_" << rank << "_gamma"
-            << ",oldest_" << rank << "_delta"
-            << ",oldest_" << rank << "_total_shares"
-            << ",oldest_" << rank << "_share_fraction";
-    }
-
-    csv << '\n';
-}
-
-void write_elite_history(
-    std::ofstream& csv,
-    const std::string& experiment_type,
-    std::uint64_t seed,
-    const RunResult& result
-)
-{
-    constexpr double total_market_shares = 800.0;
-
-    for (const auto& sample : result.elite_history)
-    {
-        csv
-            << experiment_type << ','
-            << seed << ','
-            << sample.tick << ','
-            << sample.longest_completed_lifespan << ','
-            << sample.total_trades << ','
-            << sample.active_orders << ','
-            << sample.neural_active << ','
-            << sample.neural_deaths << ','
-            << sample.bank_cash;
-
-        for (const auto& trader : sample.traders)
-        {
-            const int total_shares =
-                trader.total_holdings();
-
-            csv
-                << ',' << trader.trader_id
-                << ',' << trader.age
-                << ',' << trader.cash
-                << ',' << trader.wealth
-                << ',' << trader.holdings[0]
-                << ',' << trader.holdings[1]
-                << ',' << trader.holdings[2]
-                << ',' << trader.holdings[3]
-                << ',' << total_shares
-                << ','
-                << (
-                    static_cast<double>(total_shares)
-                    / total_market_shares
-                );
-        }
-
-        csv << '\n';
-    }
-
-    csv.flush();
-}
-
 void write_result(
     std::ofstream& csv,
     const std::string& experiment_type,
@@ -783,11 +518,25 @@ void write_result(
     int neural_count,
     const RunResult& result
 )
-
 {
     const SimulationSnapshot& snapshot =
         result.final_snapshot;
 
+    OldTraderSnapshot oldest_living;
+
+    if (!snapshot.oldest_neural_traders.empty())
+    {
+        oldest_living = snapshot.oldest_neural_traders.front();
+    }
+
+    auto holding_or_zero =
+        [&](int instrument_id)
+        {
+            auto it = oldest_living.holdings.find(instrument_id);
+            return it != oldest_living.holdings.end()
+                ? it->second
+                : 0;
+        };
     csv
         << experiment_type << ','
         << seed << ','
@@ -817,6 +566,14 @@ void write_result(
         << snapshot.portfolio_rebalancer_deaths << ','
         << snapshot.neural_evolution_deaths << ','
         << result.longest_neural_lifespan << ','
+        << oldest_living.trader_id << ','
+        << oldest_living.age << ','
+        << oldest_living.cash << ','
+        << oldest_living.wealth << ','
+        << holding_or_zero(1) << ','
+        << holding_or_zero(2) << ','
+        << holding_or_zero(3) << ','
+        << holding_or_zero(4) << ','
         << snapshot.bank_cash << ','
         << snapshot.random_cash << ','
         << snapshot.random_portfolio_value << ','
@@ -834,26 +591,19 @@ void write_result(
         << result.max_price_spread << ','
         << result.mean_relative_spread << ','
         << result.max_relative_spread << ',';
-
     for (int id = 1; id <= 4; ++id)
     {
         const PriceStats& stats =
             result.price_stats.at(id);
-
         int trades = 0;
-
         auto trade_it =
             snapshot.total_trades_per_instrument.find(id);
-
         if (trade_it !=
             snapshot.total_trades_per_instrument.end())
-
         {
             trades = trade_it->second;
         }
-
         csv
-
             << snapshot.instrument_reference_price.at(id).current_price
             << ','
             << stats.mean() << ','
@@ -892,7 +642,6 @@ void write_result(
     csv << result.runtime_seconds << '\n';
     csv.flush();
 }
-
 struct Experiment
 {
     std::string experiment_type;
@@ -904,7 +653,6 @@ struct Experiment
     int cost_frequency;
     std::int64_t cost_amount;
 };
-
 std::string format_duration(double seconds)
 {
     int total_seconds =
@@ -922,7 +670,6 @@ std::string format_duration(double seconds)
         << std::setw(2) << secs;
     return output.str();
 }
-
 void write_progress(
     const std::filesystem::path& progress_path,
     std::size_t completed,
@@ -933,7 +680,6 @@ void write_progress(
     const LiveRunState* latest_completed,
     const std::string& status
 )
-
 {
     auto now =
         std::chrono::steady_clock::now();
@@ -952,7 +698,6 @@ void write_progress(
                 / static_cast<double>(state.total_ticks);
         }
     }
-
     double runs_per_second = 0.0;
     double eta_seconds = 0.0;
     if (elapsed > 0.0 && effective_completed > 0.0)
@@ -964,24 +709,18 @@ void write_progress(
                     / runs_per_second
                 : 0.0;
     }
-
     auto temporary_path = progress_path;
-
     temporary_path += ".tmp";
-
     std::ofstream progress(temporary_path);
-
     if (!progress)
     {
         return;
     }
-
     double percentage =
         total > 0
             ? 100.0 * effective_completed
                 / static_cast<double>(total)
             : 0.0;
-
     progress
         << "Market Terrarium random-trader sweep\n"
         << "========================================\n\n"
@@ -1012,7 +751,6 @@ void write_progress(
             << runs_per_second * 60.0
             << " runs/min\n";
     }
-
     progress
         << "\nActive runs\n"
         << "-----------\n";
@@ -1020,20 +758,16 @@ void write_progress(
     for (std::size_t i = 0; i < live_states.size(); ++i)
     {
         const auto& state = live_states[i];
-
         if (!state.active)
         {
             continue;
         }
-
         any_active = true;
-
         double run_percentage =
             state.total_ticks > 0
                 ? 100.0 * static_cast<double>(state.tick)
                     / static_cast<double>(state.total_ticks)
                 : 0.0;
-
         progress
             << "Worker " << i << ": "
             << state.experiment_type
@@ -1045,12 +779,10 @@ void write_progress(
             << " | charge=" << state.cost_amount
             << " every " << state.cost_frequency
             << " ticks ("
-
             << std::setprecision(2)
             << (state.cost_frequency > 0
                 ? static_cast<double>(state.cost_amount) / static_cast<double>(state.cost_frequency)
                 : 0.0)
-
             << "/tick)"
             << '\n'
             << "  Tick: "
@@ -1086,8 +818,11 @@ void write_progress(
             << state.total_deaths
             << " | neural deaths: "
             << state.neural_deaths
-            << " | longest neural lifespan: "
+            << " | longest completed neural: "
             << state.longest_neural_lifespan
+            << " | oldest living neural: "
+            << state.oldest_living_neural_age
+            << " (id=" << state.oldest_living_neural_id << ')'
             << " | bank cash: "
             << state.bank_cash
             << '\n'
@@ -1097,19 +832,15 @@ void write_progress(
             << " B=" << state.prices[1]
             << " G=" << state.prices[2]
             << " D=" << state.prices[3]
-
             << "\n\n";
     }
-
     if (!any_active)
     {
         progress << "None\n";
     }
-
     progress
         << "\nLatest completed run\n"
         << "--------------------\n";
-
     if (latest_completed != nullptr)
     {
         progress
@@ -1149,8 +880,14 @@ void write_progress(
             << " | neural deaths: "
             << latest_completed->neural_deaths
             << '\n'
-            << "Longest neural lifespan: "
+            << "Longest completed neural lifespan: "
             << latest_completed->longest_neural_lifespan
+            << '\n'
+            << "Oldest living neural: "
+            << latest_completed->oldest_living_neural_age
+            << " (id=" << latest_completed->oldest_living_neural_id << ")"
+            << " | cash=" << latest_completed->oldest_living_neural_cash
+            << " | wealth=" << latest_completed->oldest_living_neural_wealth
             << '\n'
             << "Bank cash: "
             << latest_completed->bank_cash
@@ -1158,22 +895,17 @@ void write_progress(
             << format_duration(latest_completed->runtime_seconds)
             << '\n';
     }
-
     else
     {
         progress << "None yet\n";
     }
-
     progress.close();
-
     std::error_code error;
-
     std::filesystem::rename(
         temporary_path,
         progress_path,
         error
     );
-
     if (error)
     {
         std::filesystem::remove(progress_path, error);
@@ -1185,52 +917,38 @@ void write_progress(
         );
     }
 }
-
 int main()
 {
     constexpr int ticks_per_run = 250000;
-
     constexpr int sample_every = 100;
-
     constexpr auto progress_write_interval = std::chrono::seconds(2);
-
-
+    // Random-trader sweep. Keep total population fixed at 200 so runtime and
+    // population size are controlled; random traders replace neural traders.
+    // All conditions use the current smooth recurring cost: 2 cash every tick.
+    // Five seeds x eleven conditions x 30000 ticks makes this a screening run
+    // rather than another overnight act of computational self-harm.
     const std::vector<std::uint64_t> seeds{
-        8008135,
         1001,
         1002,
         1003,
         1004,
-        1005,
-        1006,
-        1007,
-        1008,
-        1009
+        1005
     };
-
     namespace fs = std::filesystem;
     fs::path results_directory =
         fs::path(MARKET_TERRARIUM_SOURCE_DIR) / "results";
-
     fs::path progress_path =
         results_directory / "progress.txt";
-
     fs::create_directories(results_directory);
-
     auto now = std::chrono::system_clock::now();
-
     std::time_t now_time =
         std::chrono::system_clock::to_time_t(now);
-
     std::tm* local_time = std::localtime(&now_time);
-
     std::ostringstream timestamp;
-
     timestamp << std::put_time(
         local_time,
         "%Y-%m-%d_%H-%M-%S"
     );
-
     fs::path output_path =
         results_directory /
         (
@@ -1238,11 +956,8 @@ int main()
             + timestamp.str()
             + ".csv"
         );
-
     std::ofstream csv(output_path);
-
     if (!csv)
-
     {
         std::cerr
             << "Failed to open "
@@ -1250,58 +965,44 @@ int main()
             << '\n';
         return 1;
     }
-
     csv << std::setprecision(10);
-
     write_header(csv);
-
     fs::path error_path =
         results_directory /
-
         (
             "random_trader_sweep_"
             + timestamp.str()
             + "_errors.log"
         );
-
-    fs::path elite_output_path =
-        results_directory /
-        (
-            "elite_neural_history_"
-            + timestamp.str()
-            + ".csv"
-        );
-
-    std::ofstream elite_csv(elite_output_path);
-
-    if (!elite_csv)
-    {
-        std::cerr
-            << "Failed to open "
-            << elite_output_path
-            << '\n';
-
-        return 1;
-    }
-
-    elite_csv << std::setprecision(10);
-    write_elite_header(elite_csv);
-
     std::ofstream errors(error_path);
-
-    const std::vector<Experiment> conditions{
-    Experiment{
-        "R140_N60_baseline",
-        0,
-        140, // random
-        0,   // mean
-        0,   // rebalancer
-        60,  // neural
-        1,   // charge frequency
-        2    // charge amount
+    constexpr int total_traders = 200;
+    constexpr int cost_frequency = 1;
+    constexpr std::int64_t cost_amount = 2;
+    // Fine resolution around the 0.5-5% region where the GUI runs have looked
+    // strongest, with a broader tail to check whether the optimum has moved.
+    const std::vector<int> random_counts{
+        0, 40, 70, 80, 120, 160, 180, 190
+    };
+    std::vector<Experiment> conditions;
+    conditions.reserve(random_counts.size());
+    for (int random_count : random_counts)
+    {
+        const int neural_count = total_traders - random_count;
+        std::ostringstream label;
+        label << "R" << random_count << "_N" << neural_count;
+        conditions.push_back(
+            Experiment{
+                label.str(),
+                0,
+                random_count,
+                0,
+                0,
+                neural_count,
+                cost_frequency,
+                cost_amount
+            }
+        );
     }
-};
-
     std::vector<Experiment> experiments;
     experiments.reserve(seeds.size() * conditions.size());
     for (std::uint64_t seed : seeds)
@@ -1313,24 +1014,22 @@ int main()
         }
     }
     const std::size_t total_runs = experiments.size();
-
     unsigned int hardware_threads =
         std::thread::hardware_concurrency();
     if (hardware_threads == 0)
     {
         hardware_threads = 4;
     }
-
+    // Leave two logical CPUs free so the desktop remains usable while the
+    // synthetic financiers consume the rest.
     unsigned int worker_count =
         hardware_threads > 2
             ? hardware_threads - 2
             : 1;
-
     worker_count = std::min(
         worker_count,
         static_cast<unsigned int>(total_runs)
     );
-
     std::cout
         << "Running "
         << total_runs
@@ -1339,24 +1038,15 @@ int main()
         << " worker threads ("
         << hardware_threads
         << " logical CPUs detected).\n";
-
     std::atomic<std::size_t> next_experiment{0};
-
     std::atomic<std::size_t> completed_runs{0};
-
     std::atomic<std::size_t> failed_runs{0};
-
     std::mutex output_mutex;
-
     std::vector<LiveRunState> live_states(worker_count);
-
     LiveRunState latest_completed;
-
     bool has_latest_completed = false;
-
     auto experiment_start =
         std::chrono::steady_clock::now();
-
     auto last_progress_write = experiment_start;
     {
         std::lock_guard<std::mutex> lock(output_mutex);
@@ -1370,7 +1060,6 @@ int main()
             nullptr,
             "Starting"
         );
-
     }
     auto worker = [&](unsigned int worker_index)
     {
@@ -1381,44 +1070,27 @@ int main()
                     1,
                     std::memory_order_relaxed
                 );
-
             if (index >= total_runs)
             {
                 break;
             }
-
             const Experiment experiment =
                 experiments[index];
-
             auto run_start = std::chrono::steady_clock::now();
             {
-
                 std::lock_guard<std::mutex> lock(output_mutex);
-
                 LiveRunState& state = live_states[worker_index];
-
                 state = LiveRunState{};
-
                 state.active = true;
-
                 state.experiment_type = experiment.experiment_type;
-
                 state.seed = experiment.seed;
-
                 state.random_count = experiment.random_count;
-
                 state.mean_count = experiment.mean_count;
-
                 state.rebalancer_count = experiment.rebalancer_count;
-
                 state.neural_count = experiment.neural_count;
-
                 state.cost_frequency = experiment.cost_frequency;
-
                 state.cost_amount = experiment.cost_amount;
-
                 state.total_ticks = ticks_per_run;
-
             }
             try
             {
@@ -1427,60 +1099,53 @@ int main()
                         const SimulationSnapshot& snapshot,
                         int last_trade_tick)
                 {
-
                     std::lock_guard<std::mutex> lock(output_mutex);
-
                     LiveRunState& state = live_states[worker_index];
-
                     state.tick = tick;
-
                     state.total_trades = snapshot.total_trades;
-
                     state.last_trade_tick = last_trade_tick;
-
                     state.active_traders = snapshot.active_total_traders;
-
                     state.active_orders = snapshot.active_orders;
-
                     state.random_active = snapshot.random;
-
                     state.mean_active = snapshot.mean_reversion;
-
                     state.rebalancer_active = snapshot.portfolio_rebalancer;
-
                     state.neural_active = snapshot.neural_evolution;
-
                     state.total_deaths = snapshot.total_deaths;
-
                     state.neural_deaths = snapshot.neural_evolution_deaths;
-
                     state.longest_neural_lifespan = snapshot.longest_neural_lifespan;
-
+                    if (!snapshot.oldest_neural_traders.empty())
+                    {
+                        const auto& oldest = snapshot.oldest_neural_traders.front();
+                        state.oldest_living_neural_id = oldest.trader_id;
+                        state.oldest_living_neural_age = oldest.age;
+                        state.oldest_living_neural_cash = oldest.cash;
+                        state.oldest_living_neural_wealth = oldest.wealth;
+                    }
+                    else
+                    {
+                        state.oldest_living_neural_id = 0;
+                        state.oldest_living_neural_age = 0;
+                        state.oldest_living_neural_cash = 0;
+                        state.oldest_living_neural_wealth = 0;
+                    }
                     state.bank_cash = snapshot.bank_cash;
-
                     state.runtime_seconds =
                         std::chrono::duration<double>(
                             std::chrono::steady_clock::now() - run_start
                         ).count();
-
                     for (int id = 1; id <= 4; ++id)
-
                     {
                         auto price_it =
                             snapshot.instrument_reference_price.find(id);
-
                         if (price_it !=
                             snapshot.instrument_reference_price.end())
-
                         {
                             state.prices[static_cast<std::size_t>(id - 1)] =
                                 price_it->second.current_price;
                         }
                     }
-
                     auto progress_now =
                         std::chrono::steady_clock::now();
-
                     if (
                         progress_now - last_progress_write
                         >= progress_write_interval
@@ -1498,11 +1163,9 @@ int main()
                                 : nullptr,
                             "Running"
                         );
-
                         last_progress_write = progress_now;
                     }
                 };
-
                 RunResult result =
                     run_experiment(
                         experiment.seed,
@@ -1516,7 +1179,6 @@ int main()
                         sample_every,
                         callback
                     );
-
                 std::size_t completed =
                     completed_runs.fetch_add(
                         1,
@@ -1524,56 +1186,48 @@ int main()
                     ) + 1;
                 {
                     std::lock_guard<std::mutex> lock(output_mutex);
-
                     LiveRunState& state = live_states[worker_index];
-
                     const auto& snapshot = result.final_snapshot;
-
                     state.tick = snapshot.tick;
-
                     state.total_trades = snapshot.total_trades;
-
                     state.last_trade_tick = result.last_trade_tick;
-
                     state.active_traders = snapshot.active_total_traders;
-
                     state.active_orders = snapshot.active_orders;
-
                     state.random_active = snapshot.random;
-
                     state.mean_active = snapshot.mean_reversion;
-
                     state.rebalancer_active = snapshot.portfolio_rebalancer;
-
                     state.neural_active = snapshot.neural_evolution;
-
                     state.total_deaths = snapshot.total_deaths;
-
                     state.neural_deaths = snapshot.neural_evolution_deaths;
-
                     state.longest_neural_lifespan = snapshot.longest_neural_lifespan;
-
                     state.bank_cash = snapshot.bank_cash;
-
                     state.runtime_seconds = result.runtime_seconds;
-
                     state.longest_neural_lifespan = result.longest_neural_lifespan;
-
+                    if (!snapshot.oldest_neural_traders.empty())
+                    {
+                        const auto& oldest = snapshot.oldest_neural_traders.front();
+                        state.oldest_living_neural_id = oldest.trader_id;
+                        state.oldest_living_neural_age = oldest.age;
+                        state.oldest_living_neural_cash = oldest.cash;
+                        state.oldest_living_neural_wealth = oldest.wealth;
+                    }
+                    else
+                    {
+                        state.oldest_living_neural_id = 0;
+                        state.oldest_living_neural_age = 0;
+                        state.oldest_living_neural_cash = 0;
+                        state.oldest_living_neural_wealth = 0;
+                    }
                     for (int id = 1; id <= 4; ++id)
                     {
                         state.prices[static_cast<std::size_t>(id - 1)] =
                             snapshot.instrument_reference_price.at(id)
                                 .current_price;
                     }
-
                     latest_completed = state;
-
                     latest_completed.active = false;
-
                     has_latest_completed = true;
-
                     state.active = false;
-
                     write_result(
                         csv,
                         experiment.experiment_type,
@@ -1587,14 +1241,6 @@ int main()
                         experiment.neural_count,
                         result
                     );
-
-                    write_elite_history(
-                        elite_csv,
-                        experiment.experiment_type,
-                        experiment.seed,
-                        result
-                    );
-
                     write_progress(
                         progress_path,
                         completed,
@@ -1605,10 +1251,8 @@ int main()
                         &latest_completed,
                         "Running"
                     );
-
                     last_progress_write =
                         std::chrono::steady_clock::now();
-
                     std::cout
                         << '['
                         << completed
@@ -1641,17 +1285,13 @@ int main()
                         1,
                         std::memory_order_relaxed
                     ) + 1;
-
                 std::size_t completed =
                     completed_runs.fetch_add(
                         1,
                         std::memory_order_relaxed
                     ) + 1;
-
                 std::lock_guard<std::mutex> lock(output_mutex);
-
                 live_states[worker_index].active = false;
-
                 write_progress(
                     progress_path,
                     completed,
@@ -1664,10 +1304,8 @@ int main()
                         : nullptr,
                     "Running - latest run failed"
                 );
-
                 last_progress_write =
                     std::chrono::steady_clock::now();
-
                 std::cerr
                     << '['
                     << completed
@@ -1680,7 +1318,6 @@ int main()
                     << " | "
                     << error.what()
                     << '\n';
-
                 if (errors)
                 {
                     errors
@@ -1699,38 +1336,29 @@ int main()
                         << " error="
                         << error.what()
                         << '\n';
-
                     errors.flush();
                 }
             }
         }
     };
-
     std::vector<std::thread> workers;
-
     workers.reserve(worker_count);
-
     for (unsigned int i = 0; i < worker_count; ++i)
     {
         workers.emplace_back(worker, i);
     }
-
     for (auto& thread : workers)
     {
         thread.join();
     }
-
     auto experiment_end =
         std::chrono::steady_clock::now();
-
     double total_seconds =
         std::chrono::duration<double>(
             experiment_end - experiment_start
         ).count();
-
     {
         std::lock_guard<std::mutex> lock(output_mutex);
-
         write_progress(
             progress_path,
             total_runs,
@@ -1744,7 +1372,6 @@ int main()
             "Complete"
         );
     }
-
     std::cout
         << "\nFinished "
         << total_runs

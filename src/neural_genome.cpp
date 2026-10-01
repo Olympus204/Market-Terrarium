@@ -55,7 +55,6 @@ void NeuralGenome::inherit()
     memory_1 = empty_memory;
     memory_2 = empty_memory;
     memory_3 = empty_memory;
-    memory_4 = empty_memory;
 }
 
 void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_this_epoch, std::int64_t median_last_epoch)

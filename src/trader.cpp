@@ -563,6 +563,43 @@ bool SimpleTrader::apply_payment(std::int64_t amount)
     return true;
 }
 
+std::int64_t SimpleTrader::calculate_taxes()
+{
+    std::int64_t tax = 0;
+    total_worth = get_total_worth();
+    std::int64_t total_earned = total_worth - worth_last_tax_season;
+    int personal_allowance = 12570;
+    if (total_earned > 100000)
+    {
+        personal_allowance -= (total_earned - 100000) / 2;
+
+        personal_allowance = std::max<std::int64_t>(0, personal_allowance);
+    }
+    total_earned -= personal_allowance;
+    if  (total_worth <= 0)
+    {
+        return 0;
+    }
+    if (total_earned <= 37700)
+    {
+        return lround(total_earned * 0.2);
+    }
+    tax += lround(37700 * 0.2);
+    total_earned -= 37700;
+    if (total_earned + 37700 + personal_allowance <= 125140)
+    {
+        return tax + lround(total_earned * 0.4);
+    }
+    tax += lround(87440 * 0.4);
+    total_earned -= 87440;
+    return tax + lround(total_earned * 0.45);
+}
+
+void SimpleTrader::record_tax_season()
+{
+    worth_last_tax_season = get_total_worth();
+}
+
 bool SimpleTrader::remove_holding(int instrument_id, int quantity)
 {
     auto holding = positions.find(instrument_id);

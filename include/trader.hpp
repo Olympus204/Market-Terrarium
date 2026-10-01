@@ -105,16 +105,17 @@ public:
     bool apply_cost(std::int64_t amount);
     bool apply_payment(std::int64_t amount);
 
+    std::int64_t calculate_taxes();
+    void record_tax_season();
+
     bool remove_holding(int instrument_id, int quantity);
     void record_death(int current_tick);
     int get_age(int current_tick) const;
 
     bool set_neural_genome(NeuralGenome neural_genome);
-
     NeuralGravestone write_gravestone();
     const NeuralGenome& get_genome() const;
     void update_memory(std::map<int,double> memory_1, std::map<int,double> memory_2, std::map<int,double> memory_3, std::map<int,double> memory_4);
-
     void learn(std::int64_t median_this_epoch, std::int64_t median_last_epoch);
 private:
     int id;
@@ -125,8 +126,10 @@ private:
     std::int64_t reserved_cash{0};
     int memory = 20;
 
-    int total_worth = 0;
-    int total_worth_last_epoch = 0;
+    std::int64_t worth_last_tax_season = 0;
+
+    std::int64_t total_worth = 0;
+    std::int64_t total_worth_last_epoch = 0;
     bool is_worth_last_epoch = false;
     bool is_worth_current_epoch = false;
 
