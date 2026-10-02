@@ -579,7 +579,7 @@ std::int64_t SimpleTrader::calculate_taxes()
         personal_allowance = std::max<std::int64_t>(0, personal_allowance);
     }
     total_earned -= personal_allowance;
-    if  (total_worth <= 0)
+    if  (tax_total_worth <= 0)
     {
         return 0;
     }
