@@ -308,7 +308,10 @@ bool SimpleTrader::settle_sell(int order_id, int execution_price, int quantity)
         return false;
     }
     bool released = release_holding(instrument_id, quantity);
-    assert(released);
+    if (!released)
+    {
+        throw std::logic_error("failed to release holdings to settle sell");
+    }
 
     position->second.cost_basis -= position->second.cost_basis * quantity / position->second.quantity;
     position->second.quantity -= quantity;
@@ -649,12 +652,12 @@ const NeuralGenome& SimpleTrader::get_genome() const
     return genome;
 }
 
-void SimpleTrader::update_memory(std::map<int,double> memory_1, std::map<int,double> memory_2, std::map<int,double> memory_3, std::map<int,double> memory_4)
+void SimpleTrader::update_memory(std::map<int,double> memory_1, std::map<int,double> memory_2, std::map<int,double> memory_3, double plasticity)
 {
     genome.memory_1 = memory_1;
     genome.memory_2 = memory_2;
     genome.memory_3 = memory_3;
-    genome.memory_4 = memory_4;
+    genome.plasticity = plasticity;
 }
 
 void SimpleTrader::learn(std::int64_t median_this_epoch, std::int64_t median_last_epoch)

@@ -95,7 +95,7 @@ EvolutionOutputs forward_pass(const NeuralGenome& genome, const EvolutionInputs&
     outputs.memory_1 = output_array[6];
     outputs.memory_2 = output_array[7];
     outputs.memory_3 = output_array[8];
-    outputs.memory_4 = output_array[9];
+    outputs.plasticity = output_array[9];
     return outputs;
 }
 
@@ -231,7 +231,7 @@ MemoryDecision neural_decide(const SimpleTrader& trader)
     std::map<int, double> memory_1 = genome.memory_1;
     std::map<int, double> memory_2 = genome.memory_2;
     std::map<int, double> memory_3 = genome.memory_3;
-    std::map<int, double> memory_4 = genome.memory_4;
+    std::map<int, double> plasticity;
     for (const auto& [id, observation] : observations)
     {
         auto it_1 = memory_1.find(id);
@@ -249,18 +249,20 @@ MemoryDecision neural_decide(const SimpleTrader& trader)
         {
             memory_3[id] = 0;
         } 
-        auto it_4 = memory_4.find(id);
-        if (it_4 == memory_4.end())
-        {
-            memory_4[id] = 0;
-        } 
+        plasticity[id] = 0;
         EvolutionInputs inputs = build_inputs(trader,id);
-        EvolutionOutputs output = forward_pass(genome, inputs, memory_1.at(id), memory_2.at(id),memory_3.at(id),memory_4.at(id));
+        EvolutionOutputs output = forward_pass(genome, inputs, memory_1.at(id), memory_2.at(id),memory_3.at(id),plasticity.at(id));
         memory_1.at(id) = output.memory_1;
         memory_2.at(id) = output.memory_2;
         memory_3.at(id) = output.memory_3;
-        memory_4.at(id) = output.memory_4;
+        plasticity[id] = output.plasticity;
         outputs.emplace(id,output);
     }
-    return MemoryDecision{evaluate(outputs,trader),memory_1,memory_2,memory_3,memory_4};
+    double average_plastiicty = 0;
+    for (const auto& [id, plastic] : plasticity)
+    {
+        average_plastiicty += plastic;
+    }
+    average_plastiicty = average_plastiicty / static_cast<double>(plasticity.size());
+    return MemoryDecision{evaluate(outputs,trader),memory_1,memory_2,memory_3,average_plastiicty};
 }

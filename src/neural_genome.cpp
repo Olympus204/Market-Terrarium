@@ -66,7 +66,7 @@ void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_t
     {
         if (layer_no == 0)
         {
-            input_weights.at(node_no * INPUT_SIZE + extra_node_no) += initial_change;
+            input_weights.at(node_no * INPUT_SIZE + extra_node_no) += (initial_change * ((plasticity + 1) / 2));
             change_no += 1;
         }
         else if (layer_no == 1)
@@ -76,7 +76,7 @@ void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_t
         }
         else if (layer_no == 2)
         {
-            output_weights.at(node_no * HIDDEN_SIZE + extra_node_no) += initial_change;
+            output_weights.at(node_no * HIDDEN_SIZE + extra_node_no) += (initial_change * ((plasticity + 1) / 2));
             change_no += 1;
         }
         else if (layer_no == 3)
@@ -90,7 +90,7 @@ void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_t
         initial_change *= -1;
         if (layer_no == 0)
         {
-            input_weights.at(node_no * INPUT_SIZE + extra_node_no) += initial_change;
+            input_weights.at(node_no * INPUT_SIZE + extra_node_no) += (initial_change * ((plasticity + 1) / 2));
             change_no += 1;
         }
         else if (layer_no == 1)
@@ -100,7 +100,7 @@ void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_t
         }
         else if (layer_no == 2)
         {
-            output_weights.at(node_no * HIDDEN_SIZE + extra_node_no) += initial_change;
+            output_weights.at(node_no * HIDDEN_SIZE + extra_node_no) += (initial_change * ((plasticity + 1) / 2));
             change_no += 1;
         }
         else if (layer_no == 3)
@@ -117,7 +117,7 @@ void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_t
         }
         if (layer_no == 0)
         {
-            input_weights.at(node_no * INPUT_SIZE + extra_node_no) += initial_change / (2 * change_no);
+            input_weights.at(node_no * INPUT_SIZE + extra_node_no) += (initial_change * ((plasticity + 1) / 2)) / (2 * change_no);
             change_no += 1;
             if (change_no >= max_changes)
             {
@@ -138,7 +138,7 @@ void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_t
         }
         else if (layer_no == 1)
         {
-            hidden_biases.at(node_no) += initial_change / (2 * change_no);
+            hidden_biases.at(node_no) += (initial_change * ((plasticity + 1) / 2)) / (2 * change_no);
             change_no += 1;
             if (change_no >= max_changes)
             {
@@ -154,7 +154,7 @@ void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_t
         }
         else if (layer_no == 2)
         {
-            output_weights.at(node_no * HIDDEN_SIZE + extra_node_no) += initial_change / (2 * change_no);
+            output_weights.at(node_no * HIDDEN_SIZE + extra_node_no) += (initial_change * ((plasticity + 1) / 2)) / (2 * change_no);
             change_no += 1;
             if (change_no >= max_changes)
             {
@@ -175,7 +175,7 @@ void NeuralGenome::learn(std::int64_t trader_worth_change, std::int64_t median_t
         }
         else if (layer_no == 3)
         {
-            output_biases.at(node_no) += initial_change / (2 * change_no);
+            output_biases.at(node_no) += (initial_change * ((plasticity + 1) / 2)) / (2 * change_no);
             change_no += 1;
             if (change_no >= max_changes)
             {

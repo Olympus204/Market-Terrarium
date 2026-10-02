@@ -115,7 +115,7 @@ public:
     bool set_neural_genome(NeuralGenome neural_genome);
     NeuralGravestone write_gravestone();
     const NeuralGenome& get_genome() const;
-    void update_memory(std::map<int,double> memory_1, std::map<int,double> memory_2, std::map<int,double> memory_3, std::map<int,double> memory_4);
+    void update_memory(std::map<int,double> memory_1, std::map<int,double> memory_2, std::map<int,double> memory_3, double plasticity);
     void learn(std::int64_t median_this_epoch, std::int64_t median_last_epoch);
 private:
     int id;

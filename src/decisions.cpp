@@ -657,7 +657,7 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
     auto type = trader.get_trader_type();
     if (type == TraderType::none)
     {
-        return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+        return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
     }
     if (type == TraderType::neural_evolution)
     {
@@ -725,7 +725,7 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
         }
         auto chosen_id = chooser(holding_weights, rng);
         if (!chosen_id.has_value()) {
-            return MemoryDecision{TraderDecision{ActionType::none, 0, 0, 0, 0},empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision{ActionType::none, 0, 0, 0, 0},empty_memory,empty_memory,empty_memory,0};
         }
         int id = chosen_id.value();
         if (type == TraderType::random)
@@ -738,11 +738,11 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
             int max_quantity = trader.get_available_cash() / price;
             if (max_quantity <= 0)
             {
-                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
             }
             std::uniform_int_distribution<int> quantity_distribution(1,max_quantity);
             int quantity = quantity_distribution(rng);
-            return MemoryDecision{TraderDecision(ActionType::buy, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision(ActionType::buy, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,0};
         }
         else if (type == TraderType::portfolio_rebalancer)
         {
@@ -755,26 +755,26 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
             int max_quantity = trader.get_available_cash() / price;
             if (max_quantity <= 0 || quantity <= 0)
             {
-                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
             }
-            return MemoryDecision{TraderDecision(ActionType::buy, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision(ActionType::buy, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,0};
         }
         else if (type == TraderType::mean_value)
         {
             std::map<int,int> price_weights = mean_value_price_weights(trader,id,5);
             auto chosen_price = chooser(price_weights, rng);
             if (!chosen_price.has_value()){
-            return MemoryDecision{TraderDecision{ActionType::none, 0, 0, 0, 0},empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision{ActionType::none, 0, 0, 0, 0},empty_memory,empty_memory,empty_memory,0};
             }
             int price = chosen_price.value();
             int max_quantity = trader.get_available_cash() / price;
             if (max_quantity <= 0)
             {
-                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
             }
             std::uniform_int_distribution<int> quantity_distribution(1,max_quantity);
             int quantity = quantity_distribution(rng);
-            return MemoryDecision{TraderDecision(ActionType::buy, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision(ActionType::buy, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,0};
         }
 
     }
@@ -804,7 +804,7 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
         }
         auto chosen_id = chooser(holding_weights, rng);
         if (!chosen_id.has_value()) {
-            return MemoryDecision{TraderDecision{ActionType::none, 0, 0, 0, 0},empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision{ActionType::none, 0, 0, 0, 0},empty_memory,empty_memory,empty_memory,0};
         }
         int id = chosen_id.value();
         if (type == TraderType::random)
@@ -821,7 +821,7 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
             }
             std::uniform_int_distribution<int> quantity_distribution(1,max_quantity);
             int quantity = quantity_distribution(rng);
-            return MemoryDecision{TraderDecision(ActionType::sell, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision(ActionType::sell, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,0};
         }
         else if (type == TraderType::portfolio_rebalancer)
         {
@@ -834,9 +834,9 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
             int max_quantity = trader.get_available_holding(id);
             if (max_quantity <= 0 || quantity <= 0)
             {
-                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
             }
-            return MemoryDecision{TraderDecision(ActionType::sell, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision(ActionType::sell, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,0};
         }
         else if (type == TraderType::mean_value)
         {
@@ -844,7 +844,7 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
             auto chosen_price = chooser(price_weights, rng);
             if (!chosen_price.has_value())
             {
-                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
             }
             std::int64_t price = chosen_price.value();
             int max_quantity = trader.get_available_holding(id);
@@ -854,7 +854,7 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
             }
             std::uniform_int_distribution<int> quantity_distribution(1,max_quantity);
             int quantity = quantity_distribution(rng);
-            return MemoryDecision{TraderDecision(ActionType::sell, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision(ActionType::sell, 0, id, quantity, price),empty_memory,empty_memory,empty_memory,0};
         }
     }
     else if (roll <= weights.buy + weights.sell + weights.cancel)
@@ -874,7 +874,7 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
             auto chosen_id = portfolio_rebalancer_cancel(trader);
             if (!chosen_id.has_value())
             {
-                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+                return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
             }
             int id = chosen_id.value();
             cancel_weights[id] = 1;
@@ -886,14 +886,14 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
         auto chosen_id = chooser(cancel_weights,rng);
         if (!chosen_id.has_value())
         {
-            return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+            return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
         }
         int id = chosen_id.value();
-        return MemoryDecision{TraderDecision{ActionType::cancel,id,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+        return MemoryDecision{TraderDecision{ActionType::cancel,id,0,0,0},empty_memory,empty_memory,empty_memory,0};
     }
     else
     {
-        return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+        return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
     }
-    return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,empty_memory};
+    return MemoryDecision{TraderDecision{ActionType::none,0,0,0,0},empty_memory,empty_memory,empty_memory,0};
 }

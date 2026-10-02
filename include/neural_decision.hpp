@@ -29,7 +29,7 @@ struct EvolutionOutputs
     double memory_1;
     double memory_2;
     double memory_3;
-    double memory_4;
+    double plasticity;
 };
 
 struct MemoryDecision
@@ -38,7 +38,7 @@ struct MemoryDecision
     std::map<int,double> memory_1;
     std::map<int,double> memory_2;
     std::map<int,double> memory_3;
-    std::map<int,double> memory_4;
+    double plasticity;
 };
 
 MemoryDecision neural_decide(const SimpleTrader& trader);

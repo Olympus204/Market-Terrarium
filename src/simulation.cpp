@@ -533,7 +533,7 @@ void Simulation::tick()
         {
             it->second.reset_health();
             MemoryDecision memory_decision = make_decision(it->second, rng);
-            it->second.update_memory(memory_decision.memory_1,memory_decision.memory_2,memory_decision.memory_3,memory_decision.memory_4);
+            it->second.update_memory(memory_decision.memory_1,memory_decision.memory_2,memory_decision.memory_3,memory_decision.plasticity);
             TraderDecision decision = memory_decision.decision;
             if (decision.type == ActionType::cancel)
         {

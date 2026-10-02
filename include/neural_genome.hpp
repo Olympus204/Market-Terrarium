@@ -31,7 +31,7 @@ public:
     std::map<int,double> memory_1;
     std::map<int,double> memory_2;
     std::map<int,double> memory_3;
-    std::map<int,double> memory_4;
+    double plasticity = 0;
 private:
     int layer_no = 0;
     int node_no = 0;
