@@ -774,7 +774,7 @@ SimulationSnapshot Simulation::get_snapshot()
     {
         auto it = instrument_stats.find(id);
 
-        snapshot.trades_last_100_ticks_per_instrument[id] = it->second.trades_last_100_ticks(current_tick);
+        snapshot.trades_last_100_ticks_per_instrument[id] = it->second.trades_last_500_ticks(current_tick);
 
         snapshot.instrument_volatility[id] =
             it != instrument_stats.end()

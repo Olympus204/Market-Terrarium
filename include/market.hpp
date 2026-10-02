@@ -29,33 +29,29 @@ struct InstrumentStats
     double return_square_sum = 0.0;
 
     std::deque<std::pair<int, int>> recent_trade_ticks;
-    int trades_last_100_ticks_cached = 0;
+    int trades_last_500_ticks_cached = 0;
 
-    static constexpr std::size_t volatility_window = 100;
+    static constexpr std::size_t volatility_window = 500;
 
     void update(double price)
     {
         if (last_price > 0.0)
         {
-            double price_return =
-                (price - last_price) / last_price;
+            double price_return = std::log(price / last_price);
 
             returns.push_back(price_return);
 
             return_sum += price_return;
-            return_square_sum +=
-                price_return * price_return;
+            return_square_sum += price_return * price_return;
 
             if (returns.size() > volatility_window)
             {
-                double old_return =
-                    returns.front();
+                double old_return = returns.front();
 
                 returns.pop_front();
 
                 return_sum -= old_return;
-                return_square_sum -=
-                    old_return * old_return;
+                return_square_sum -= old_return * old_return;
             }
         }
 
@@ -69,19 +65,15 @@ struct InstrumentStats
             return 0.0;
         }
 
-        double n =
-            static_cast<double>(returns.size());
+        const double n = static_cast<double>(returns.size());
 
-        double mean =
-            return_sum / n;
+        const double mean = return_sum / n;
 
-        double variance =
-            return_square_sum / n
-            - mean * mean;
+        const double variance = return_square_sum / n - mean * mean;
 
-        return std::sqrt(
-            std::max(0.0, variance)
-        );
+        const double per_tick_vol = std::sqrt(std::max(0.0, variance));
+
+        return per_tick_vol * std::sqrt(n);
     }
 
     void record_trade(int tick)
@@ -97,25 +89,25 @@ struct InstrumentStats
             recent_trade_ticks.emplace_back(tick, 1);
         }
 
-        trades_last_100_ticks_cached += 1;
+        trades_last_500_ticks_cached += 1;
         prune_old_trades(tick);
     }
 
     void prune_old_trades(int current_tick)
     {
-        const int cutoff = current_tick - 99;
+        const int cutoff = current_tick - 499;
 
         while (!recent_trade_ticks.empty() && recent_trade_ticks.front().first < cutoff)
         {
-            trades_last_100_ticks_cached -= recent_trade_ticks.front().second;
+            trades_last_500_ticks_cached -= recent_trade_ticks.front().second;
             recent_trade_ticks.pop_front();
         }
     }
 
-    int trades_last_100_ticks(int current_tick)
+    int trades_last_500_ticks(int current_tick)
     {
         prune_old_trades(current_tick);
-        return trades_last_100_ticks_cached;
+        return trades_last_500_ticks_cached;
     }
 
 };

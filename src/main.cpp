@@ -686,8 +686,8 @@ int main()
                 ImGui::TableSetupColumn("Instrument");
                 ImGui::TableSetupColumn("Price");
                 ImGui::TableSetupColumn("Trades");
-                ImGui::TableSetupColumn("Trades (100t)");
-                ImGui::TableSetupColumn("Volatility (100t)");
+                ImGui::TableSetupColumn("Trades (500t)");
+                ImGui::TableSetupColumn("Volatility (500t)");
 
                 ImGui::TableHeadersRow();
 
