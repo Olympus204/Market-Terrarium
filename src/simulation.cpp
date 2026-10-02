@@ -166,8 +166,9 @@ bool Simulation::queue_trader(TraderType type)
 
 bool Simulation::add_instrument(int id, std::string name, int starting_price)
 {
-    market.add_instrument(id, name ,starting_price);
-    visible_prices.emplace(id, starting_price);
+    market.add_instrument(id, name, starting_price);
+    visible_prices.emplace( id, Observation{ static_cast<double>(starting_price), std::nullopt, std::nullopt});
+    instrument_stats.emplace(id, InstrumentStats{});
     return true;
 }
 
@@ -195,6 +196,8 @@ void Simulation::settle_accounts()
         {
             throw std::logic_error("settlement failed");
         }
+        int id = history.at(next_unsettled_trade).instrument_id;
+        instrument_stats.at(id).record_trade(current_tick);
         next_unsettled_trade += 1;
     }
 }
@@ -497,6 +500,12 @@ void Simulation::tick()
             throw std::logic_error("Active trader missing");
         }
         it->second.update_observed_prices(visible_prices);
+        for (const auto& [id, observation] : visible_prices)
+        {
+            instrument_stats[id].update(
+                observation.current_price
+            );
+        }
         if (current_tick % cost_frequency == 0)
         {
             bool charged = charge_trader(id, cost_amount);
@@ -761,6 +770,17 @@ SimulationSnapshot Simulation::get_snapshot()
     snapshot.instrument_names = names;
     snapshot.instrument_reference_price = market.get_last_prices();
     snapshot.total_trades_per_instrument = market.get_total_trades();
+    for (int id : snapshot.instrument_ids)
+    {
+        auto it = instrument_stats.find(id);
+
+        snapshot.trades_last_100_ticks_per_instrument[id] = it->second.trades_last_100_ticks(current_tick);
+
+        snapshot.instrument_volatility[id] =
+            it != instrument_stats.end()
+                ? it->second.volatility()
+                : 0.0;
+    }
 
     //population
     snapshot.active_total_traders = static_cast<int>(active_traders.size());

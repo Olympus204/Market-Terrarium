@@ -31,6 +31,8 @@ struct SimulationSnapshot
     std::unordered_map<int,Observation> instrument_reference_price;
     std::unordered_map<int,int> last_execution_price;
     std::map<int,int> total_trades_per_instrument;
+    std::map<int,int> trades_last_100_ticks_per_instrument;
+    std::map<int, double> instrument_volatility;
     //population
     int active_total_traders;
     int random;
@@ -123,6 +125,7 @@ private:
     std::vector<int> active_traders;
     std::unordered_map<int, size_t> active_trader_index;
     std::deque<TraderType> traders_to_add;
+    std::unordered_map<int, InstrumentStats> instrument_stats;
 
     std::int64_t median_worth = 0;
     std::int64_t median_worth_last_epoch = 0;

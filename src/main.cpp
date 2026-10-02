@@ -16,12 +16,14 @@
 
 int main()
 {
-    Simulation sim{10012, 2000000};
+    Simulation sim{8008135, 2000000};
 
     sim.add_instrument(1, "ALPHA", 100);
     sim.add_instrument(2,"BETA",100);
     sim.add_instrument(3,"GAMMA",100);
     sim.add_instrument(4,"DELTA",100);
+    sim.add_instrument(5,"EPSILON",100);
+    sim.add_instrument(6,"ZETA",100);
 
     sim.set_recurring_costs(1,2);
     sim.set_tax_frequency(true, 10000);
@@ -29,6 +31,8 @@ int main()
     sim.introduce_holdings(2, 200);
     sim.introduce_holdings(3, 200);
     sim.introduce_holdings(4, 200);
+    sim.introduce_holdings(5, 200);
+    sim.introduce_holdings(6, 200);
     sim.set_bank_recycling(5000,1,0);
     sim.set_living_parent_selection(true);
 
@@ -36,7 +40,6 @@ int main()
     {
         sim.queue_trader(TraderType::random);
     }
-
     for (int i = 1; i <= 40; ++i)
     {
         sim.queue_trader(TraderType::neural_evolution);
@@ -665,6 +668,108 @@ int main()
             200.0f,
             "%.0f"
         );
+
+        ImGui::End();
+
+        if (ImGui::Begin("Instrument Statistics"))
+        {
+            if (
+                ImGui::BeginTable(
+                    "InstrumentStats",
+                    5,
+                    ImGuiTableFlags_Borders |
+                    ImGuiTableFlags_RowBg |
+                    ImGuiTableFlags_SizingStretchProp
+                )
+            )
+            {
+                ImGui::TableSetupColumn("Instrument");
+                ImGui::TableSetupColumn("Price");
+                ImGui::TableSetupColumn("Trades");
+                ImGui::TableSetupColumn("Trades (100t)");
+                ImGui::TableSetupColumn("Volatility (100t)");
+
+                ImGui::TableHeadersRow();
+
+                for (int id : latest_snapshot.instrument_ids)
+                {
+                    ImGui::TableNextRow();
+
+                    ImGui::TableSetColumnIndex(0);
+
+                    ImGui::Text(
+                        "%s",
+                        latest_snapshot.instrument_names.at(id).c_str()
+                    );
+
+                    ImGui::TableSetColumnIndex(1);
+
+                    ImGui::Text(
+                        "%.2f",
+                        latest_snapshot
+                            .instrument_reference_price
+                            .at(id)
+                            .current_price
+                    );
+
+                    ImGui::TableSetColumnIndex(2);
+
+                    int trades = 0;
+
+                    auto trade_it =
+                        latest_snapshot.total_trades_per_instrument.find(id);
+
+                    if (
+                        trade_it !=
+                        latest_snapshot.total_trades_per_instrument.end()
+                    )
+                    {
+                        trades = trade_it->second;
+                    }
+
+                    ImGui::Text("%d", trades);
+
+                    ImGui::TableSetColumnIndex(3);
+
+                    int trades_last_100_ticks = 0;
+
+                    auto trade_100_it =
+                        latest_snapshot.trades_last_100_ticks_per_instrument.find(id);
+
+                    if (
+                        trade_100_it !=
+                        latest_snapshot.total_trades_per_instrument.end()
+                    )
+                    {
+                        trades_last_100_ticks = trade_100_it->second;
+                    }
+
+                    ImGui::Text("%d", trades_last_100_ticks);
+
+                    ImGui::TableSetColumnIndex(4);
+
+                    double volatility = 0.0;
+
+                    auto vol_it =
+                        latest_snapshot.instrument_volatility.find(id);
+
+                    if (
+                        vol_it !=
+                        latest_snapshot.instrument_volatility.end()
+                    )
+                    {
+                        volatility = vol_it->second;
+                    }
+
+                    ImGui::Text(
+                        "%.3f%%",
+                        volatility * 100.0
+                    );
+                }
+
+                ImGui::EndTable();
+            }
+        }
 
         ImGui::End();
             

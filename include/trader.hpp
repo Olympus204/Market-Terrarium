@@ -127,6 +127,7 @@ private:
     int memory = 20;
 
     std::int64_t worth_last_tax_season = 0;
+    std::int64_t tax_total_worth = 0;
 
     std::int64_t total_worth = 0;
     std::int64_t total_worth_last_epoch = 0;

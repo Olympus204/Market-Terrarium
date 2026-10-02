@@ -259,7 +259,10 @@ bool SimpleTrader::settle_buy(int order_id, int execution_price, int quantity)
         return false;
     }
     bool released = release_cash(reserved_amount);
-    assert(released);
+    if (!released)
+    {
+        throw std::logic_error("failed to settle buy");
+    }
     cash -= total_spent;
     add_holding(instrument_id, quantity, execution_price);
     it->second.remaining_quantity -= quantity;
@@ -566,8 +569,8 @@ bool SimpleTrader::apply_payment(std::int64_t amount)
 std::int64_t SimpleTrader::calculate_taxes()
 {
     std::int64_t tax = 0;
-    total_worth = get_total_worth();
-    std::int64_t total_earned = total_worth - worth_last_tax_season;
+    tax_total_worth = get_total_worth();
+    std::int64_t total_earned = tax_total_worth - worth_last_tax_season;
     int personal_allowance = 12570;
     if (total_earned > 100000)
     {
