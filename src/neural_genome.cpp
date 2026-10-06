@@ -2,7 +2,7 @@
 
 NeuralGenome NeuralGenome::random(std::mt19937_64& rng)
 {
-    NeuralGenome genome;
+    NeuralGenome genome{};
 
     std::normal_distribution<double> distribution(0.0, 0.5);
 

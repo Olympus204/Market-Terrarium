@@ -22,11 +22,11 @@ public:
     static constexpr int HIDDEN_SIZE = 10;
     static constexpr int OUTPUT_SIZE = 10;
 
-    std::array<double, INPUT_SIZE * HIDDEN_SIZE> input_weights;
-    std::array<double, HIDDEN_SIZE> hidden_biases;
+    std::array<double, INPUT_SIZE * HIDDEN_SIZE> input_weights{};
+    std::array<double, HIDDEN_SIZE> hidden_biases{};
 
-    std::array<double, HIDDEN_SIZE * OUTPUT_SIZE> output_weights;
-    std::array<double, OUTPUT_SIZE> output_biases;
+    std::array<double, HIDDEN_SIZE * OUTPUT_SIZE> output_weights{};
+    std::array<double, OUTPUT_SIZE> output_biases{};
 
     std::map<int,double> memory_1;
     std::map<int,double> memory_2;

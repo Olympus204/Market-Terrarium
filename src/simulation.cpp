@@ -140,7 +140,7 @@ bool Simulation::add_trader(int64_t starting_money, TraderType type)
 
     if (type == TraderType::neural_evolution)
     {
-        NeuralGenome genome;
+        NeuralGenome genome{};
 
         std::uniform_int_distribution<int> random_distribution(0, 9);
         int random_birth = random_distribution(rng);
@@ -160,7 +160,7 @@ bool Simulation::add_trader(int64_t starting_money, TraderType type)
         }
         else
         {
-            genome.random(rng);
+            genome = genome.random(rng);
         }
 
         traders.at(last_used_id).set_neural_genome(genome);
