@@ -18,7 +18,7 @@ public:
     void learn(std::int64_t trader_worth_change, std::int64_t median_this_epoch, std::int64_t median_last_epoch);
 
 
-    static constexpr int INPUT_SIZE = 12;
+    static constexpr int INPUT_SIZE = 11;
     static constexpr int HIDDEN_SIZE = 10;
     static constexpr int OUTPUT_SIZE = 10;
 

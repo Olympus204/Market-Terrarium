@@ -19,6 +19,12 @@ SimpleTrader::SimpleTrader(int trader_id, std::int64_t starting_cash, TraderType
     }
 }
 
+bool SimpleTrader::set_memory(int length)
+{
+    memory = length;
+    return true;
+}
+
 bool SimpleTrader::increment_health()
 {
     if (trader_health == Health::healthy)
@@ -388,7 +394,7 @@ void SimpleTrader::update_observed_prices(const std::unordered_map<int, Observat
     {
         auto& history = observed_prices[id];
         history.push_back(price);
-        if (history.size() > static_cast<std::size_t>(memory))
+        if (history.size() > static_cast<std::size_t>(memory + 1))
         {
             history.pop_front();
         }

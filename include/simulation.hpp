@@ -84,6 +84,7 @@ public:
     Simulation(std::uint64_t seed, int total_cash);
     void snapshot_prices();
 
+    void set_trader_memory_length(int length);
     void set_living_parent_selection(bool enabled);
     std::vector<NeuralParentCandidate> get_neural_parent_candidates(int child_id) const;
     bool add_trader(int64_t starting_money, TraderType type);
@@ -121,6 +122,7 @@ private:
     std::mt19937_64 rng;
     int seed;
     Market market;
+    int memory_length = 20;
     std::map<int,SimpleTrader> traders;
     std::vector<int> active_traders;
     std::unordered_map<int, size_t> active_trader_index;
@@ -148,7 +150,7 @@ private:
     std::int64_t starting_amount = 1000;
     std::int64_t bank_redistributed_this_tick = 0;
     std::int64_t reserve_target = 20000;
-    bool is_taxes = false;
+    bool is_taxes = true;
     int tax_season = 2000;
 
     std::size_t next_unsettled_trade = 0;

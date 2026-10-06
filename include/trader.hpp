@@ -63,6 +63,8 @@ struct SimpleTrader
 public:
     SimpleTrader(int trader_id, std::int64_t starting_cash, TraderType type, int current_tick = 0);
 
+    bool set_memory(int length);
+
     bool increment_health();
     void reset_health();
     Health get_health(); 
@@ -124,7 +126,7 @@ private:
     Health trader_health{Health::healthy};
     std::int64_t cash;
     std::int64_t reserved_cash{0};
-    int memory = 20;
+    int memory = 250;
 
     std::int64_t worth_last_tax_season = 0;
     std::int64_t tax_total_worth = 0;

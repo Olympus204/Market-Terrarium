@@ -651,7 +651,7 @@ std::map<int,int> mean_value_cancel(const SimpleTrader& trader)
     return cancel_weights;
 }
 
-MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
+MemoryDecision make_decision(const SimpleTrader& trader, double tax_awareness, std::mt19937_64& rng)
 {
     std::map<int,double> empty_memory;
     auto type = trader.get_trader_type();
@@ -661,7 +661,7 @@ MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng)
     }
     if (type == TraderType::neural_evolution)
     {
-        return neural_decide(trader);
+        return neural_decide(trader, tax_awareness);
     }
     ActionWeights weights{0,0,0,0};
     if (type == TraderType::random)

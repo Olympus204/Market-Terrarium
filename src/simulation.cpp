@@ -23,6 +23,11 @@ void Simulation::snapshot_prices()
     visible_prices = last_prices;
 }
 
+void Simulation::set_trader_memory_length(int length)
+{
+    memory_length = length;
+}
+
 void Simulation::set_living_parent_selection(bool enabled)
 {
     allow_living_parents = enabled;
@@ -127,6 +132,11 @@ bool Simulation::add_trader(int64_t starting_money, TraderType type)
     active_trader_index.emplace(last_used_id, active_traders.size());
     active_traders.push_back(last_used_id);
     type_count[type] += 1;
+
+    if (type == TraderType::mean_value)
+    {
+        traders.at(last_used_id).set_memory(memory_length);
+    }
 
     if (type == TraderType::neural_evolution)
     {
@@ -532,7 +542,15 @@ void Simulation::tick()
         if (available_cash >= 0)
         {
             it->second.reset_health();
-            MemoryDecision memory_decision = make_decision(it->second, rng);
+
+            int remainder = current_tick % tax_season;
+            int ticks_until_tax = remainder ==0
+                                ? tax_season
+                                :tax_season - remainder;
+
+            double tax_awareness = 1.0 - 2.0 * static_cast<double>(ticks_until_tax) / static_cast<double>(tax_season);
+
+            MemoryDecision memory_decision = make_decision(it->second, tax_awareness, rng);
             it->second.update_memory(memory_decision.memory_1,memory_decision.memory_2,memory_decision.memory_3,memory_decision.plasticity);
             TraderDecision decision = memory_decision.decision;
             if (decision.type == ActionType::cancel)

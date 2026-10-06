@@ -16,7 +16,7 @@
 
 int main()
 {
-    Simulation sim{8008135, 2000000};
+    Simulation sim{5318008, 2000000};
 
     sim.add_instrument(1, "ALPHA", 100);
     sim.add_instrument(2,"BETA",100);
@@ -27,18 +27,23 @@ int main()
 
     sim.set_recurring_costs(1,2);
     sim.set_tax_frequency(true, 10000);
-    sim.introduce_holdings(1, 200);
-    sim.introduce_holdings(2, 200);
-    sim.introduce_holdings(3, 200);
-    sim.introduce_holdings(4, 200);
-    sim.introduce_holdings(5, 200);
-    sim.introduce_holdings(6, 200);
+    sim.introduce_holdings(1, 400);
+    sim.introduce_holdings(2, 400);
+    sim.introduce_holdings(3, 400);
+    sim.introduce_holdings(4, 400);
+    sim.introduce_holdings(5, 400);
+    sim.introduce_holdings(6, 400);
     sim.set_bank_recycling(5000,1,0);
     sim.set_living_parent_selection(true);
 
-    for (int i = 1; i <= 160; ++i)
+    for (int i = 1; i <= 120; ++i)
     {
         sim.queue_trader(TraderType::random);
+    }
+    for (int i = 1; i <= 20; ++i)
+    {
+        sim.queue_trader(TraderType::mean_value);
+        sim.queue_trader(TraderType::portfolio_rebalancer);
     }
     for (int i = 1; i <= 40; ++i)
     {

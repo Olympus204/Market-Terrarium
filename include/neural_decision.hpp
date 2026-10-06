@@ -41,4 +41,4 @@ struct MemoryDecision
     double plasticity;
 };
 
-MemoryDecision neural_decide(const SimpleTrader& trader);
+MemoryDecision neural_decide(const SimpleTrader& trader, double tax_awareness);

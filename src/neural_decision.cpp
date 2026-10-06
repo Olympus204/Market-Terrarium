@@ -46,7 +46,7 @@ EvolutionInputs build_inputs(const SimpleTrader& trader, int instrument_id)
     return inputs;
 }
 
-EvolutionOutputs forward_pass(const NeuralGenome& genome, const EvolutionInputs& inputs, double memory_1, double memory_2, double memory_3, double memory_4)
+EvolutionOutputs forward_pass(const NeuralGenome& genome, const EvolutionInputs& inputs, double memory_1, double memory_2, double tax_awareness)
 {
     std::array<double,NeuralGenome::INPUT_SIZE> input_array;
     input_array[0] = inputs.change_over_5_ticks;
@@ -59,8 +59,7 @@ EvolutionOutputs forward_pass(const NeuralGenome& genome, const EvolutionInputs&
     input_array[7] = inputs.fraction_of_wealth_in_cash;
     input_array[8] = memory_1;
     input_array[9] = memory_2;
-    input_array[10] = memory_3;
-    input_array[11] = memory_4;
+    input_array[10] = tax_awareness;
 
     EvolutionOutputs outputs;
     std::array<double,NeuralGenome::HIDDEN_SIZE> hidden_nodes;
@@ -223,7 +222,7 @@ TraderDecision evaluate(std::map<int, EvolutionOutputs>& outputs, const SimpleTr
 }
 
 
-MemoryDecision neural_decide(const SimpleTrader& trader)
+MemoryDecision neural_decide(const SimpleTrader& trader, double tax_awareness)
 {
     std::map<int,EvolutionOutputs> outputs;
     const auto& observations = trader.get_observed_prices();
@@ -244,17 +243,11 @@ MemoryDecision neural_decide(const SimpleTrader& trader)
         {
             memory_2[id] = 0;
         }
-        auto it_3 = memory_3.find(id);
-        if (it_3 == memory_3.end())
-        {
-            memory_3[id] = 0;
-        } 
         plasticity[id] = 0;
         EvolutionInputs inputs = build_inputs(trader,id);
-        EvolutionOutputs output = forward_pass(genome, inputs, memory_1.at(id), memory_2.at(id),memory_3.at(id),plasticity.at(id));
+        EvolutionOutputs output = forward_pass(genome, inputs, memory_1.at(id), memory_2.at(id),tax_awareness);
         memory_1.at(id) = output.memory_1;
         memory_2.at(id) = output.memory_2;
-        memory_3.at(id) = output.memory_3;
         plasticity[id] = output.plasticity;
         outputs.emplace(id,output);
     }

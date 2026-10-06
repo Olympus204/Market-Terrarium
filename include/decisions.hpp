@@ -17,4 +17,4 @@ struct ActionWeights
 
 std::optional<int> chooser(const std::map<int, int>& weights, std::mt19937_64& rng);
 std::map<int, int> random_instrument_choice(std::unordered_map<int, std::deque<int>>& observed_prices);
-MemoryDecision make_decision(const SimpleTrader& trader, std::mt19937_64& rng);
+MemoryDecision make_decision(const SimpleTrader& trader, double tax_awareness, std::mt19937_64& rng);
