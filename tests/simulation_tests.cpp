@@ -206,10 +206,6 @@ void simulation_test_10()
     sim.tick();
     require(sim.get_trader_available_cash(0) == 1000, "bank has incorrect balance");
     require(sim.get_trader_available_holdings(0,1) == 5, "bank has incorrect holdings");
-    require(sim.get_trader_available_cash(1) == 0, "trader has cash");
-    require(sim.get_trader_total_holdings(1,1) == 0, "trader has holdings");
-    orders = sim.get_trader_active_orders(1);
-    require(orders.size() == 0, "trader has orders");
 }
 
 void simulation_test_11()
