@@ -126,7 +126,7 @@ private:
     Health trader_health{Health::healthy};
     std::int64_t cash;
     std::int64_t reserved_cash{0};
-    int memory = 250;
+    int memory = 20;
 
     std::int64_t worth_last_tax_season = 0;
     std::int64_t tax_total_worth = 0;

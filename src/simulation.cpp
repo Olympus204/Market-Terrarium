@@ -510,12 +510,6 @@ void Simulation::tick()
             throw std::logic_error("Active trader missing");
         }
         it->second.update_observed_prices(visible_prices);
-        for (const auto& [id, observation] : visible_prices)
-        {
-            instrument_stats[id].update(
-                observation.current_price
-            );
-        }
         if (current_tick % cost_frequency == 0)
         {
             bool charged = charge_trader(id, cost_amount);
@@ -638,6 +632,12 @@ void Simulation::tick()
                 it->second.record_total_worth(total_worths.back());
             }
     }
+    for (const auto& [id, observation] : visible_prices)
+    {
+        instrument_stats[id].update(
+            observation.current_price
+        );
+    }
     for (int trader : failed_traders)
     {
         liquidate_trader(trader);
@@ -650,8 +650,8 @@ void Simulation::tick()
             int lifespan = gravestone.death_tick - gravestone.birth_tick;
             cemetery.emplace(lifespan,gravestone);
         }
-        //remove from simulation
         ++ deaths[type];
+        traders.erase(trader);
     }
     if (current_tick % epoch_size == 0 && can_learn && !total_worths.empty())
     {

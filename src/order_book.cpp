@@ -118,7 +118,7 @@ const SellBook& OrderBook::get_sells() const
     return sells;
 }
 
-std::optional<int> OrderBook::best_buy()
+std::optional<int> OrderBook::best_buy() const
 {
     if (!buys.empty())
     {
@@ -127,7 +127,7 @@ std::optional<int> OrderBook::best_buy()
     return std::nullopt;
 }
 
-std::optional<int> OrderBook::best_sell()
+std::optional<int> OrderBook::best_sell() const
 {
     if (!sells.empty())
     {

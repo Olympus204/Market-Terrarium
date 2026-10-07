@@ -35,8 +35,8 @@ public:
     const BuyBook& get_buys() const;
     const SellBook& get_sells() const;
     const Order get_last_sale();
-    std::optional<int> best_buy();
-    std::optional<int> best_sell();
+    std::optional<int> best_buy() const;
+    std::optional<int> best_sell() const;
 
 private:
     BuyBook buys;
